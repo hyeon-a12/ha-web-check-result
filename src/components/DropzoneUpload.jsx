@@ -108,9 +108,9 @@ const DropzoneUpload = forwardRef(function DropzoneUpload({ onChange }, ref) {
             </div>
 
             <div className="upload-row">
-                <span className="file-status" style={{ display: file ? "inline-block" : "none" }}>
+                {/* <span className="file-status" style={{ display: file ? "inline-block" : "none" }}>
                     {fileName}
-                </span>
+                </span> */}
             </div>
         </div>
     );
