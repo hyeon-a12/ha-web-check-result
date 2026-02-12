@@ -16,7 +16,7 @@ body {
 }
 
 .wrap {
-    width: 60%;
+    width: 70%;
     height: 100%;
     margin: 0 auto;
 }
@@ -210,9 +210,6 @@ ul.menus {
 /* =========================
    Main Title / CTA
    ========================= */
-#main .title {
-    margin-top: 20px;
-}
 
 #main .left .title h1 {
     font-size: 70px;
@@ -254,7 +251,7 @@ ul.menus {
 
 #main .box {
     position: relative;
-    top: 250px;
+    top: 180px;
     display: flex;
     justify-content: space-between;
     width: 100%;
