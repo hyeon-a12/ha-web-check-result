@@ -1,5 +1,7 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
+import html2canvas from "html2canvas";
+import { jsPDF } from "jspdf";
 
 import { fetchGalleryMockDetails } from "../services/api";
 
@@ -13,6 +15,7 @@ export default function GalleryPage() {
 
     const chartRef = useRef(null);
     const chartInstanceRef = useRef(null);
+    const reportRef = useRef(null);
 
     const aiScore = Math.round(analysis?.confidenceScore ?? 87);
     const trustScore = 94;
@@ -191,6 +194,74 @@ export default function GalleryPage() {
         };
     }, [frameData]);
 
+    const onDownloadPdf = async () => {
+        if (!reportRef.current) return;
+
+        const pdfArea = reportRef.current.querySelector(".pdf-area");
+        if (pdfArea) {
+            pdfArea.style.display = "none";
+        }
+
+        try {
+            const canvas = await html2canvas(reportRef.current, {
+                scale: 2,
+                useCORS: true,
+                scrollX: 0,
+                scrollY: 0,
+                backgroundColor: "#ffffff",
+                windowWidth: reportRef.current.scrollWidth,
+                windowHeight: reportRef.current.scrollHeight,
+            });
+
+            const pdf = new jsPDF("p", "mm", "a4");
+            const pageWidth = pdf.internal.pageSize.getWidth();
+            const pageHeight = pdf.internal.pageSize.getHeight();
+            const margin = 10;
+            const usableWidth = pageWidth - margin * 2;
+            const scale = usableWidth / canvas.width;
+            const usableHeightPx = (pageHeight - margin * 2) / scale;
+
+            let renderedHeight = 0;
+            let isFirstPage = true;
+
+            while (renderedHeight < canvas.height) {
+                const pageCanvas = document.createElement("canvas");
+                pageCanvas.width = canvas.width;
+                pageCanvas.height = Math.min(usableHeightPx, canvas.height - renderedHeight);
+
+                const pageContext = pageCanvas.getContext("2d");
+                pageContext.drawImage(
+                    canvas,
+                    0,
+                    renderedHeight,
+                    canvas.width,
+                    pageCanvas.height,
+                    0,
+                    0,
+                    canvas.width,
+                    pageCanvas.height
+                );
+
+                if (!isFirstPage) {
+                    pdf.addPage();
+                }
+
+                const imageData = pageCanvas.toDataURL("image/png");
+                const renderedHeightMm = pageCanvas.height * scale;
+                pdf.addImage(imageData, "PNG", margin, margin, usableWidth, renderedHeightMm);
+
+                renderedHeight += pageCanvas.height;
+                isFirstPage = false;
+            }
+
+            pdf.save("analysis-report.pdf");
+        } finally {
+            if (pdfArea) {
+                pdfArea.style.display = "";
+            }
+        }
+    };
+
     const scoreLabel = useMemo(() => {
         if (aiScore >= 80) return "매우 높음";
         if (aiScore >= 60) return "높음";
@@ -204,7 +275,7 @@ export default function GalleryPage() {
     return (
         <div id="main">
             <div className="wrap">
-                <section id="resultPage" className="result-page">
+                <section id="resultPage" className="result-page" ref={reportRef}>
                     <div className="result-top">
                         <div className="rt-left">
                             <h2 className="rt-title">분석 결과 리포트</h2>
@@ -400,9 +471,9 @@ export default function GalleryPage() {
                     </div>
 
                     <div className="pdf-area">
-                        <a className="pdf-btn" href="/report.pdf" download>
+                        <button className="pdf-btn" type="button" onClick={onDownloadPdf}>
                             분석 리포트 PDF 다운로드
-                        </a>
+                        </button>
                     </div>
                 </section>
             </div>
