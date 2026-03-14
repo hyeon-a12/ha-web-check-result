@@ -221,11 +221,14 @@ ul.menus {
     color: rgb(73, 105, 219);
 }
 
+/*메뉴 이동 시 메뉴 이름 볼드 처리됨*/
+/*
 .drawer-menus a.active,
 .menu-link.active {
     color: rgb(73, 105, 219);
     font-weight: 800;
 }
+*/
 
 .drawer-lang {
     margin-top: 16px;
