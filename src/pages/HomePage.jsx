@@ -44,13 +44,14 @@ export default function HomePage() {
             setUrlMeta(null);
             setAnalysisResult(null);
             setPreviewSrc("");
-            setLoadingOpen(true);
 
             try {
                 const info = await fetchYoutubeInfo(urlValue.trim());
-                const analysis = await analyzeVideoLink(urlValue.trim());
                 setUrlMeta(info);
                 setPreviewSrc(info.thumbnail || "");
+                setLoadingOpen(true);
+
+                const analysis = await analyzeVideoLink(urlValue.trim());
                 setAnalysisResult({
                     ...info,
                     ...analysis,
