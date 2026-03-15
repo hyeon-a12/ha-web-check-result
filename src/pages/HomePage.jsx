@@ -4,27 +4,21 @@ import { useNavigate } from "react-router-dom";
 
 import DropzoneUpload from "../components/DropzoneUpload";
 import LoadingOverlay from "../components/LoadingOverlay";
-import { analyzeVideoLink, fetchYoutubeInfo } from "../services/api";
+import { analyzeVideoFile, analyzeVideoLink, fetchYoutubeInfo } from "../services/api";
 
 export default function HomePage() {
     const navigate = useNavigate();
 
-    // 탭 상태
-    const [tab, setTab] = useState("file"); // "file" | "url"
-
-    // DropzoneUpload를 탭 클릭 시 강제로 openPicker() 하기 위한 ref
+    const [tab, setTab] = useState("file");
     const dropzoneRef = useRef(null);
 
-    // 업로드 파일/미리보기 (DropzoneUpload에서 올라오는 값 저장)
     const [selectedFile, setSelectedFile] = useState(null);
     const [previewSrc, setPreviewSrc] = useState("");
 
-    // URL 입력 + API 메타데이터
     const [urlValue, setUrlValue] = useState("");
     const [urlMeta, setUrlMeta] = useState(null);
     const [analysisResult, setAnalysisResult] = useState(null);
 
-    // 로딩 오버레이(진행바)
     const [loadingOpen, setLoadingOpen] = useState(false);
     const [progress, setProgress] = useState(0);
     const [stageText, setStageText] = useState("분석을 위한 데이터 전처리를 진행 중입니다");
@@ -32,19 +26,17 @@ export default function HomePage() {
     const stages = useMemo(
         () => [
             { threshold: 0, text: "분석을 위한 데이터 전처리를 진행 중입니다" },
-            { threshold: 35, text: "프레임 및 음성 구간별 정밀 분석을 진행 중입니다" },
+            { threshold: 35, text: "프레임 간 일관성과 변형 구간을 분석 중입니다" },
             { threshold: 70, text: "최종 분석 리포트를 생성하고 있습니다" },
         ],
         []
     );
 
-    // 분석 가능 여부
     const canAnalyze = tab === "file" ? Boolean(selectedFile) : Boolean(urlValue.trim());
 
-    // "분석하기" 클릭 → 로딩 시작 (+ URL 분석 시 백엔드 호출)
     const onAnalyzeClick = async () => {
         if (!canAnalyze) {
-            alert(tab === "file" ? "이미지 파일을 선택해 주세요." : "URL을 입력해 주세요.");
+            alert(tab === "file" ? "파일을 선택해 주세요." : "URL을 입력해 주세요.");
             return;
         }
 
@@ -53,6 +45,7 @@ export default function HomePage() {
             setAnalysisResult(null);
             setPreviewSrc("");
             setLoadingOpen(true);
+
             try {
                 const info = await fetchYoutubeInfo(urlValue.trim());
                 const analysis = await analyzeVideoLink(urlValue.trim());
@@ -67,19 +60,28 @@ export default function HomePage() {
                 alert(error?.message || "URL 분석 중 오류가 발생했습니다.");
                 setLoadingOpen(false);
             }
+
             return;
         }
 
+        setAnalysisResult(null);
         setLoadingOpen(true);
+
+        try {
+            const analysis = await analyzeVideoFile(selectedFile);
+            setAnalysisResult(analysis);
+        } catch (error) {
+            console.error(error);
+            alert(error?.message || "파일 분석 중 오류가 발생했습니다.");
+            setLoadingOpen(false);
+        }
     };
 
-    // 로딩에 표시될 라벨
     const loadingFileLabel =
         tab === "file"
-            ? selectedFile?.name ?? "파일을 선택해 주세요"
-            : urlMeta?.title || urlValue?.trim() || "URL을 입력해 주세요";
+            ? selectedFile?.name ?? "파일을 선택해 주세요."
+            : urlMeta?.title || urlValue?.trim() || "URL을 입력해 주세요.";
 
-    // 로딩 진행바 시뮬레이션 + 완료 시 gallery로 이동
     useEffect(() => {
         if (!loadingOpen) return;
 
@@ -88,11 +90,10 @@ export default function HomePage() {
 
         let p = 0;
         const timer = setInterval(() => {
-            const waitingForUrlAnalysis = tab === "url" && !analysisResult;
-            p = waitingForUrlAnalysis ? Math.min(p + 5, 95) : Math.min(p + 5, 100);
+            const waitingForAnalysis = !analysisResult;
+            p = waitingForAnalysis ? Math.min(p + 5, 95) : Math.min(p + 5, 100);
             setProgress(p);
 
-            // stage text 업데이트
             for (let i = stages.length - 1; i >= 0; i--) {
                 if (p >= stages[i].threshold) {
                     setStageText(stages[i].text);
@@ -102,17 +103,16 @@ export default function HomePage() {
 
             if (p >= 100) {
                 clearInterval(timer);
-                // 원본: 3.2초 후 이동 느낌 유지 (조금 텀)
                 setTimeout(() => {
                     setLoadingOpen(false);
                     navigate("/gallery", {
                         state: {
-                            analysis: tab === "url" ? analysisResult : urlMeta,
+                            analysis: analysisResult,
                             previewSrc,
                             displayTitle:
                                 tab === "file"
-                                    ? selectedFile?.name || "의심스러운 인물 영상"
-                                    : urlMeta?.title || urlValue?.trim() || "의심스러운 인물 영상",
+                                    ? selectedFile?.name || "업로드한 영상"
+                                    : urlMeta?.title || urlValue?.trim() || "분석한 영상",
                         },
                     });
                 }, 200);
@@ -122,13 +122,11 @@ export default function HomePage() {
         return () => clearInterval(timer);
     }, [analysisResult, loadingOpen, navigate, previewSrc, selectedFile, stages, tab, urlMeta, urlValue]);
 
-    // 파일탭 클릭 시: 탭 변경 + 파일 선택창 자동 오픈(원본과 동일 UX)
     const onClickFileTab = () => {
         setTab("file");
         setTimeout(() => dropzoneRef.current?.openPicker?.(), 0);
     };
 
-    // URL탭 클릭
     const onClickUrlTab = () => {
         setTab("url");
     };
@@ -137,11 +135,11 @@ export default function HomePage() {
         <div id="main">
             <div className="wrap">
                 <div className="box" id="homeUI">
-                    {/* LEFT */}
                     <div className="left">
                         <div className="title">
                             <h1>
-                                당신이 보고있는 영상,<br />
+                                당신이 보고있는 영상,
+                                <br />
                                 <span style={{ color: "#000" }}>
                                     <span
                                         style={{
@@ -157,11 +155,11 @@ export default function HomePage() {
                                 </span>
                             </h1>
                             <p>
-                                딥러닝 기술로 영상의 위변조 여부를 분석하고, <br /> 의심 구간과 근거를 명확하게 제시합니다.
+                                AI 기술로 영상의 진위 여부를 분석하고,
+                                <br /> 수상한 구간과 그 근거를 명확하게 제시합니다
                             </p>
                         </div>
 
-                        {/* LoadingOverlay 컴포넌트 */}
                         <LoadingOverlay
                             open={loadingOpen}
                             fileLabel={loadingFileLabel}
@@ -172,9 +170,7 @@ export default function HomePage() {
                         />
                     </div>
 
-                    {/* RIGHT */}
                     <div className="right">
-                        {/* Tabs + Analyze Button */}
                         <div className="tabs">
                             <div className="left">
                                 <label
@@ -213,9 +209,7 @@ export default function HomePage() {
                             </div>
                         </div>
 
-                        {/* Content */}
                         <div className="tab-box" id="analyzeUI">
-                            {/* FILE TAB */}
                             {tab === "file" && (
                                 <DropzoneUpload
                                     ref={dropzoneRef}
@@ -226,14 +220,13 @@ export default function HomePage() {
                                 />
                             )}
 
-                            {/* URL TAB */}
                             {tab === "url" && (
                                 <div className="tb tb-url" style={{ display: "block" }}>
                                     <div className="url-panel">
                                         <div className="url-head">
                                             <p className="url-title">URL 붙여넣기</p>
                                             <p className="url-sub">
-                                                유튜브/트위터 등 영상 링크를 입력하면 분석을 시작할 수 있어요.
+                                                유튜브 등 영상 링크를 입력하면 분석을 시작할 수 있어요.
                                             </p>
                                         </div>
 
@@ -270,7 +263,6 @@ export default function HomePage() {
                                 </div>
                             )}
                         </div>
-                        {/* Content End */}
                     </div>
                 </div>
             </div>
