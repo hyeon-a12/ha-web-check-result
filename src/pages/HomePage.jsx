@@ -26,7 +26,7 @@ export default function HomePage() {
     const stages = useMemo(
         () => [
             { threshold: 0, text: "분석을 위한 데이터 전처리를 진행 중입니다" },
-            { threshold: 35, text: "프레임 간 일관성과 변형 구간을 분석 중입니다" },
+            { threshold: 35, text: "프레임 및 음성 구간별 정밀 분석을 진행 중입니다" },
             { threshold: 70, text: "최종 분석 리포트를 생성하고 있습니다" },
         ],
         []
@@ -36,7 +36,7 @@ export default function HomePage() {
 
     const onAnalyzeClick = async () => {
         if (!canAnalyze) {
-            alert(tab === "file" ? "파일을 선택해 주세요." : "URL을 입력해 주세요.");
+            alert(tab === "file" ? "이미지 파일을 선택해 주세요." : "URL을 입력해 주세요.");
             return;
         }
 
@@ -80,8 +80,8 @@ export default function HomePage() {
 
     const loadingFileLabel =
         tab === "file"
-            ? selectedFile?.name ?? "파일을 선택해 주세요."
-            : urlMeta?.title || urlValue?.trim() || "URL을 입력해 주세요.";
+            ? selectedFile?.name ?? "파일을 선택해 주세요"
+            : urlMeta?.title || urlValue?.trim() || "URL을 입력해 주세요";
 
     useEffect(() => {
         if (!loadingOpen) return;
@@ -156,8 +156,8 @@ export default function HomePage() {
                                 </span>
                             </h1>
                             <p>
-                                AI 기술로 영상의 진위 여부를 분석하고,
-                                <br /> 수상한 구간과 그 근거를 명확하게 제시합니다
+                                딥러닝 기술로 영상의 위변조 여부를 분석하고,
+                                <br /> 의심 구간과 근거를 명확하게 제시합니다.
                             </p>
                         </div>
 
@@ -199,7 +199,7 @@ export default function HomePage() {
                                         backgroundColor: tab === "url" ? "rgb(73, 105, 219)" : undefined,
                                     }}
                                 >
-                                    url 입력
+                                    URL 입력
                                 </label>
                             </div>
 
@@ -227,12 +227,12 @@ export default function HomePage() {
                                         <div className="url-head">
                                             <p className="url-title">URL 붙여넣기</p>
                                             <p className="url-sub">
-                                                유튜브 등 영상 링크를 입력하면 분석을 시작할 수 있어요.
+                                                유튜브/트위터 등 영상 링크를 입력하면 분석을 시작할 수 있어요.
                                             </p>
                                         </div>
 
                                         <div className="url-field">
-                                            <span className="url-icon"></span>
+                                            <span className="url-icon" />
                                             <input
                                                 type="text"
                                                 id="urlInput"
@@ -243,6 +243,9 @@ export default function HomePage() {
                                                     setUrlValue(e.target.value);
                                                     setUrlMeta(null);
                                                     setPreviewSrc("");
+                                                }}
+                                                onKeyDown={(e) => {
+                                                    if (e.key === "Enter") onAnalyzeClick();
                                                 }}
                                             />
                                             <button

@@ -20,7 +20,7 @@ export default function LoadingOverlay({
                             onClick={onClose}
                             aria-label="닫기"
                         >
-                            X
+                            ✕
                         </button>
                     ) : null}
                 </div>

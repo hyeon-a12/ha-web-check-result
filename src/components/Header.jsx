@@ -1,6 +1,5 @@
 import React, { useEffect, useState } from "react";
 import { NavLink } from "react-router-dom";
-
 import logo from "../assets/logo.png";
 
 export default function Header() {
@@ -26,14 +25,13 @@ export default function Header() {
     }, [mobileMenuOpen]);
 
     const navClass = ({ isActive }) => (isActive ? "menu-link active" : "menu-link");
-    const closeMenu = () => setMobileMenuOpen(false);
 
     return (
         <header id="header">
             <div className="wrap">
                 <div className="header-top">
                     <div className="logo">
-                        <NavLink to="/" onClick={closeMenu}>
+                        <NavLink to="/" onClick={() => setMobileMenuOpen(false)}>
                             <img src={logo} alt="logo" />
                         </NavLink>
                     </div>
@@ -46,7 +44,7 @@ export default function Header() {
                         </li>
                         <li>
                             <NavLink to="/intro" className={navClass}>
-                                소개
+                                스토어
                             </NavLink>
                         </li>
                         <li>
@@ -93,7 +91,7 @@ export default function Header() {
                 </div>
             </div>
 
-            <div className={`mobile-dim ${mobileMenuOpen ? "show" : ""}`} onClick={closeMenu} />
+            <div className={`mobile-dim ${mobileMenuOpen ? "show" : ""}`} onClick={() => setMobileMenuOpen(false)} />
 
             <nav className={`mobile-drawer ${mobileMenuOpen ? "open" : ""}`} aria-label="모바일 메뉴">
                 <div className="drawer-head">
@@ -102,7 +100,7 @@ export default function Header() {
                         type="button"
                         className="drawer-close"
                         aria-label="메뉴 닫기"
-                        onClick={closeMenu}
+                        onClick={() => setMobileMenuOpen(false)}
                     >
                         ×
                     </button>
@@ -110,32 +108,32 @@ export default function Header() {
 
                 <ul className="drawer-menus">
                     <li>
-                        <NavLink to="/" onClick={closeMenu} className={navClass}>
+                        <NavLink to="/" onClick={() => setMobileMenuOpen(false)} className={navClass}>
                             홈
                         </NavLink>
                     </li>
                     <li>
-                        <NavLink to="/intro" onClick={closeMenu} className={navClass}>
-                            소개
+                        <NavLink to="/intro" onClick={() => setMobileMenuOpen(false)} className={navClass}>
+                            스토어
                         </NavLink>
                     </li>
                     <li>
-                        <NavLink to="/gallery" onClick={closeMenu} className={navClass}>
+                        <NavLink to="/gallery" onClick={() => setMobileMenuOpen(false)} className={navClass}>
                             AI 갤러리
                         </NavLink>
                     </li>
                     <li>
-                        <NavLink to="/history" onClick={closeMenu} className={navClass}>
+                        <NavLink to="/history" onClick={() => setMobileMenuOpen(false)} className={navClass}>
                             히스토리
                         </NavLink>
                     </li>
                     <li>
-                        <NavLink to="/login" onClick={closeMenu} className={navClass}>
+                        <NavLink to="/login" onClick={() => setMobileMenuOpen(false)} className={navClass}>
                             로그인
                         </NavLink>
                     </li>
                     <li>
-                        <NavLink to="/join" onClick={closeMenu} className={navClass}>
+                        <NavLink to="/join" onClick={() => setMobileMenuOpen(false)} className={navClass}>
                             회원가입
                         </NavLink>
                     </li>
