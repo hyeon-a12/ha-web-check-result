@@ -419,12 +419,15 @@ export default function GalleryPage() {
                 .pro-lock-btn { height:42px; padding:0 18px; border-radius:999px; border:none; background:#111827; color:#fff; font-weight:800; }
                 .heatmap-grid { display:grid; grid-template-columns:repeat(2, minmax(0, 1fr)); gap:16px; margin-top:4px; }
                 
-                .heatmap-cell { position:relative; border-radius:10px; overflow:hidden; background:#0f172a; aspect-ratio:3/4; }
-                .heatmap-cell img { width:100%; height:100%; object-fit:cover; display:block; }
+                // .heatmap-cell { position:relative; border-radius:10px; overflow:hidden; background:#0f172a; aspect-ratio:3/4; }
+                // .heatmap-cell img { width:100%; height:100%; object-fit:cover; display:block; }
                 
-                //.heatmap-grid { display:grid; grid-template-columns:1fr 1fr; gap:16px; margin-top:4px; }
-                //.heatmap-cell { position:relative; border-radius:12px; overflow:hidden; background:#0f172a; aspect-ratio:1/1; }
-
+                // .heatmap-grid { display:grid; grid-template-columns:1fr 1fr; gap:16px; margin-top:4px; }
+                // .heatmap-cell { position:relative; border-radius:12px; overflow:hidden; background:#0f172a; aspect-ratio:1/1; }
+                
+                // 여기가 4등분 히트맵
+                .heatmap-grid {display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 16px; margin-top: 4px;}
+                .heatmap-cell {position: relative; border-radius: 10px; overflow: hidden; background: #0f172a; aspect-ratio: 3/4;}
  
                 .heatmap-placeholder { width:100%; height:100%; display:flex; align-items:center; justify-content:center; background:linear-gradient(135deg,#1e293b,#0f172a); min-height:160px; color:#cbd5e1; }
                 .heatmap-cell-id { position:absolute; top:8px; left:8px; background:#E24B4A; color:#fff; font-size:10px; font-weight:700; padding:2px 7px; border-radius:4px; }
