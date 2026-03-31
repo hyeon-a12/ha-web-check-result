@@ -880,6 +880,7 @@ export default function GalleryPage() {
     const reportCaptureRef = useRef(null);
     const previewSrc = location.state?.previewSrc || analysisData.thumbnail || "";
     const previewKind = location.state?.previewKind || "image";
+    const videoTitle = location.state?.displayTitle?.trim() || analysisData.filename || "분석한 영상";
 
     const inlineFrameStats = useMemo(() => {
         const probs = analysisData.timeline_chart.map((f) => f.fake_prob);
@@ -1012,8 +1013,8 @@ export default function GalleryPage() {
         return <FrameGraphPage onBack={() => setShowFrameGraph(false)} analysisData={analysisData} />;
     }
 
-    const publicItems = analysisData.detailed_analysis.filter((d) => !d.proOnly);
-    const proItems = analysisData.detailed_analysis.filter((d) => d.proOnly);
+    const publicItems = analysisData.detailed_analysis.slice(0, 2);
+    const proItems = analysisData.detailed_analysis.slice(2);
 
     return (
         <div id="main">
@@ -1149,7 +1150,7 @@ export default function GalleryPage() {
                     <div className="result-grid">
                         <div className="card video-card">
                             <div className="card-head">
-                                <h3>의심스러운 인물 영상</h3>
+                                <h3>{videoTitle}</h3>
                                 <span className={`badge ${isAiGenerated ? "warn" : "safe"}`}>{isAiGenerated ? "주의 필요" : "정상 판정"}</span>
                             </div>
                             <div className="video-preview">
@@ -1157,7 +1158,7 @@ export default function GalleryPage() {
                                     previewKind === "video" ? (
                                         <video className="gallery-preview-image" src={previewSrc} controls muted />
                                     ) : (
-                                        <img className="gallery-preview-image" src={previewSrc} alt={analysisData.filename} />
+                                        <img className="gallery-preview-image" src={previewSrc} alt={videoTitle} />
                                     )
                                 ) : (
                                     <div className="vp-dummy">영상 미리보기</div>
