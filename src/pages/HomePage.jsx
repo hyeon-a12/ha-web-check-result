@@ -113,6 +113,8 @@ export default function HomePage() {
                             analysis: analysisResult,
                             previewSrc,
                             previewKind,
+                            //유튜브 영상 재생하기 : URL 분석 결과에서 받은 videoId를 gallery 페이지로 넘겨 임베드 플레이어를 띄운다.
+                            videoId: tab === "url" ? urlMeta?.videoId || "" : "",
                             displayTitle:
                                 tab === "file"
                                     ? selectedFile?.name || "업로드한 영상"

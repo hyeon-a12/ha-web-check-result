@@ -880,6 +880,12 @@ export default function GalleryPage() {
     const reportCaptureRef = useRef(null);
     const previewSrc = location.state?.previewSrc || analysisData.thumbnail || "";
     const previewKind = location.state?.previewKind || "image";
+    //유튜브 영상 재생하기 : HomePage에서 전달한 유튜브 videoId를 읽어 플레이어 렌더링 여부를 판단한다.
+    const youtubeVideoId = location.state?.videoId || "";
+    //유튜브 영상 재생하기 : videoId로 유튜브 embed 주소를 만들어 썸네일 대신 실제 플레이어를 표시한다.
+    const youtubeEmbedUrl = youtubeVideoId
+        ? `https://www.youtube.com/embed/${youtubeVideoId}?rel=0&modestbranding=1&playsinline=1`
+        : "";
     const videoTitle = location.state?.displayTitle?.trim() || analysisData.filename || "분석한 영상";
 
     const inlineFrameStats = useMemo(() => {
@@ -1089,6 +1095,9 @@ export default function GalleryPage() {
                 .heatmap-badge-label { font-size:9px; color:#E24B4A; font-weight:700; letter-spacing:.05em; margin-bottom:1px; }
                 .heatmap-badge-count { font-size:18px; font-weight:800; color:#E24B4A; line-height:1; }
                 .heatmap-badge-title { font-size:14px; font-weight:700; color:#111827; }
+                /* 유튜브 영상 재생하기 : gallery 카드 안에서 유튜브 iframe 플레이어 크기를 기존 미리보기 영역에 맞춘다. */
+                .youtube-player-wrap { width:100%; height:280px; background:#0b0b0b; }
+                .youtube-player { width:100%; height:100%; border:0; display:block; }
             `}</style>
 
             <div className="wrap">
@@ -1154,7 +1163,18 @@ export default function GalleryPage() {
                                 <span className={`badge ${isAiGenerated ? "warn" : "safe"}`}>{isAiGenerated ? "주의 필요" : "정상 판정"}</span>
                             </div>
                             <div className="video-preview">
-                                {previewSrc ? (
+                                {/* 유튜브 영상 재생하기 : 유튜브 링크 분석이면 iframe 플레이어를 우선 렌더링하고, 아니면 기존 video/img 미리보기를 사용한다. */}
+                                {youtubeEmbedUrl ? (
+                                    <div className="youtube-player-wrap">
+                                        <iframe
+                                            className="youtube-player"
+                                            src={youtubeEmbedUrl}
+                                            title={videoTitle}
+                                            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                                            allowFullScreen
+                                        />
+                                    </div>
+                                ) : previewSrc ? (
                                     previewKind === "video" ? (
                                         <video className="gallery-preview-image" src={previewSrc} controls muted />
                                     ) : (
