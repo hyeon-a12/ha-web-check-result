@@ -87,6 +87,93 @@ function pointColorFromProb(prob) {
     return "#378ADD";
 }
 
+function getClosestHeatmapFrame(frameIdx, heatmapFrames) {
+    if (!Number.isFinite(frameIdx) || !Array.isArray(heatmapFrames) || heatmapFrames.length === 0) {
+        return null;
+    }
+
+    return heatmapFrames.reduce((closest, frame) => {
+        const candidateIdx = Number(frame.frame_index);
+        if (!Number.isFinite(candidateIdx)) return closest;
+        if (!closest) return frame;
+
+        const currentGap = Math.abs(candidateIdx - frameIdx);
+        const closestGap = Math.abs(Number(closest.frame_index) - frameIdx);
+        return currentGap < closestGap ? frame : closest;
+    }, null);
+}
+
+function getOrCreateChartTooltip(chart) {
+    const parent = chart.canvas.parentNode;
+    if (!parent) return null;
+
+    let tooltipEl = parent.querySelector(".chart-heatmap-tooltip");
+    if (!tooltipEl) {
+        tooltipEl = document.createElement("div");
+        tooltipEl.className = "chart-heatmap-tooltip";
+        tooltipEl.style.position = "absolute";
+        tooltipEl.style.pointerEvents = "none";
+        tooltipEl.style.transform = "translate(-50%, calc(-100% - 12px))";
+        tooltipEl.style.background = "rgba(17, 24, 39, 0.96)";
+        tooltipEl.style.border = "1px solid rgba(255, 255, 255, 0.12)";
+        tooltipEl.style.borderRadius = "12px";
+        tooltipEl.style.padding = "10px";
+        tooltipEl.style.boxShadow = "0 12px 28px rgba(0, 0, 0, 0.28)";
+        tooltipEl.style.color = "#f9fafb";
+        tooltipEl.style.opacity = "0";
+        tooltipEl.style.transition = "opacity .12s ease";
+        tooltipEl.style.zIndex = "20";
+        tooltipEl.style.minWidth = "150px";
+        parent.style.position = "relative";
+        parent.appendChild(tooltipEl);
+    }
+
+    return tooltipEl;
+}
+
+function buildHeatmapTooltipHandler(heatmapFrames) {
+    return ({ chart, tooltip }) => {
+        const tooltipEl = getOrCreateChartTooltip(chart);
+        if (!tooltipEl) return;
+
+        if (tooltip.opacity === 0 || !tooltip.dataPoints?.length) {
+            tooltipEl.style.opacity = "0";
+            return;
+        }
+
+        const point = tooltip.dataPoints[0];
+        const frame = point?.raw && typeof point.raw === "object"
+            ? point.raw
+            : point?.dataIndex != null
+                ? chart.data.datasets[0]?.data?.[point.dataIndex]
+                : null;
+        const frameIdx = Number(frame?.frame_idx);
+        const fakeProb = Number(frame?.fake_prob ?? point?.parsed?.y ?? 0);
+        const matchedHeatmap = getClosestHeatmapFrame(frameIdx, heatmapFrames);
+        const imageMarkup = matchedHeatmap?.image
+            ? `<img src="${matchedHeatmap.image}" alt="Frame ${frameIdx} heatmap" style="display:block;width:72px;height:72px;object-fit:cover;border-radius:8px;background:#111827;" />`
+            : `<div style="width:72px;height:72px;display:flex;align-items:center;justify-content:center;border-radius:8px;background:#1f2937;color:#9ca3af;font-size:10px;font-weight:700;">No image</div>`;
+
+        tooltipEl.innerHTML = `
+            <div style="display:flex;align-items:flex-start;gap:10px;">
+                ${imageMarkup}
+                <div style="min-width:0;">
+                    <div style="font-size:12px;font-weight:800;line-height:1.2;">Frame ${frameIdx}</div>
+                    <div style="font-size:11px;color:#d1d5db;line-height:1.45;margin-top:4px;">위조 의심도 ${fakeProb.toFixed(2)}%</div>
+                    <div style="font-size:10px;color:#9ca3af;line-height:1.4;margin-top:4px;">
+                        ${matchedHeatmap?.frame_index ? `히트맵 기준 Frame ${matchedHeatmap.frame_index}` : "히트맵 이미지 없음"}
+                    </div>
+                </div>
+            </div>
+        `;
+
+        const { offsetLeft, offsetTop } = chart.canvas;
+        tooltipEl.style.left = `${offsetLeft + tooltip.caretX}px`;
+        tooltipEl.style.top = `${offsetTop + tooltip.caretY}px`;
+        tooltipEl.style.opacity = "1";
+    };
+}
+
 // PDF 전용 보고서 컴포넌트
 // ─────────────────────────────────────────────────────────────
 function PdfLineChart({ data }) {
@@ -753,7 +840,7 @@ function FrameGraphPage({ onBack, analysisData }) {
                 options: {
                     responsive: true,
                     maintainAspectRatio: false,
-                    plugins: {
+                    legacyPlugins: {
                         legend: { display: false },
                         tooltip: { callbacks: { label: (c) => ` 위조 확률: ${c.parsed.y.toFixed(2)}%` } },
                     },
@@ -911,13 +998,19 @@ export default function GalleryPage() {
     }, []);
 
     useEffect(() => {
+        const chartContainer = inlineChartRef.current?.parentNode || null;
         const init = () => {
             if (!inlineChartRef.current || !window.Chart) return;
             if (inlineChartInst.current) inlineChartInst.current.destroy();
             const ctx = inlineChartRef.current.getContext("2d");
-            const scores = analysisData.timeline_chart.map((f) => f.fake_prob);
+            const scores = analysisData.timeline_chart.map((f) => ({
+                x: `Frame ${f.frame_idx}`,
+                y: f.fake_prob,
+                frame_idx: f.frame_idx,
+                fake_prob: f.fake_prob,
+            }));
             const labels = analysisData.timeline_chart.map((f) => `Frame ${f.frame_idx}`);
-            const pointColors = scores.map(pointColorFromProb);
+            const pointColors = analysisData.timeline_chart.map((f) => pointColorFromProb(f.fake_prob));
             const gradient = ctx.createLinearGradient(0, 0, 0, 200);
             gradient.addColorStop(0, "rgba(55,138,221,0.20)");
             gradient.addColorStop(1, "rgba(55,138,221,0.01)");
@@ -943,9 +1036,20 @@ export default function GalleryPage() {
                 options: {
                     responsive: true,
                     maintainAspectRatio: false,
-                    plugins: {
+                    interaction: {
+                        mode: "nearest",
+                        intersect: true,
+                    },
+                    legacyPlugins: {
                         legend: { display: false },
                         tooltip: { callbacks: { label: (c) => ` 위조 확률: ${c.parsed.y.toFixed(2)}%` } },
+                    },
+                    plugins: {
+                        legend: { display: false },
+                        tooltip: {
+                            enabled: false,
+                            external: buildHeatmapTooltipHandler(analysisData.heatmap_frames),
+                        },
                     },
                     scales: {
                         x: {
@@ -972,8 +1076,10 @@ export default function GalleryPage() {
         }
         return () => {
             if (inlineChartInst.current) inlineChartInst.current.destroy();
+            const tooltipEl = chartContainer?.querySelector(".chart-heatmap-tooltip");
+            if (tooltipEl) tooltipEl.remove();
         };
-    }, [analysisData.timeline_chart]);
+    }, [analysisData.heatmap_frames, analysisData.timeline_chart]);
 
     const onDownloadPdf = async () => {
         try {
@@ -1398,10 +1504,14 @@ function normalizeAnalysisData(analysis, fallbackPreviewSrc, fallbackTitle) {
             ? source.timeline_chart
             : MOCK_ANALYSIS.timeline_chart,
         heatmap_frames: Array.isArray(source.heatmap_frames)
-            ? source.heatmap_frames
+            ? source.heatmap_frames.map((frame) => ({
+                ...frame,
+                frame_index: frame.frame_index ?? frame.frame_idx ?? null,
+            }))
             : Array.isArray(source.decisive_frames)
                 ? source.decisive_frames.map((frame) => ({
                     id: `Frame ${frame.frame_index}`,
+                    frame_index: Number(frame.frame_index ?? 0),
                     fake_prob: Number(frame.fake_prob ?? 0),
                     real_prob: Number(frame.real_prob ?? 0),
                     image: frame.image_url || null,
