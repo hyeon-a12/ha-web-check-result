@@ -318,7 +318,7 @@ function PrintableReport({
     reportDate,
 }) {
     const verdictText =
-        analysisData.final_prediction === "FAKE" ? "AI ?? ??" : "?? ??";
+        analysisData.final_prediction === "FAKE" ? "AI 생성 의심" : "정상 영상";
 
     const verdictColor =
         analysisData.final_prediction === "FAKE" ? "#d9485f" : "#2f7d4a";
@@ -338,9 +338,9 @@ function PrintableReport({
         .map((item) => item.frame_idx);
 
     const compactSummary = `
-? ??? ${verdictText}?? ?????, ?? ???? ${analysisData.overall_confidence_percent.toFixed(1)}%???.
-?? ?? ???? Frame ${inlineFrameStats.peakIdx}??, ?? ??? ? ${inlineFrameStats.dangerCount}????.
-?? ?? ??? ?? ??? ???? ???, ?? ???, ?? ????, ?? ?? ??? ?? ???? ?? ????.
+본 영상은 ${verdictText}으로 판정되었고, 전체 신뢰도는 ${analysisData.overall_confidence_percent.toFixed(1)}%입니다.
+최고 의심 프레임은 Frame ${inlineFrameStats.peakIdx}이며, 위험 구간은 총 ${inlineFrameStats.dangerCount}개입니다.
+상위 의심 프레임 전후 구간을 중심으로 경계선, 배경 노이즈, 질감 불연속성, 조명 이상 여부를 추가 확인하는 것이 좋습니다.
     `.trim();
 
     return (
@@ -641,42 +641,42 @@ function PrintableReport({
             <div className="pdf-page">
                 <div className="pdf-header">
                     <div>
-                        <h1 className="pdf-title">?? ?? ???</h1>
-                        <div className="pdf-subtitle">?? ?? ? AI ?? ?? ?? ??</div>
+                        <h1 className="pdf-title">분석 결과 보고서</h1>
+                        <div className="pdf-subtitle">영상 판독 및 AI 생성 의심 분석 결과</div>
                         <div className="pdf-format-badge">
-                            ?? ??
+                            파일 형식
                             <span>.{fileExt}</span>
                         </div>
                     </div>
-                    <div className="pdf-badge">?? ?? ???</div>
+                    <div className="pdf-badge">자동 생성 보고서</div>
                 </div>
 
                 <table className="pdf-info-table">
                     <tbody>
                         <tr>
-                            <th>?? ID</th>
+                            <th>분석 ID</th>
                             <td>{analysisData.analysis_id}</td>
-                            <th>?? ??</th>
+                            <th>분석 일시</th>
                             <td>{reportDate}</td>
                         </tr>
                         <tr>
-                            <th>???</th>
+                            <th>파일명</th>
                             <td colSpan={3}>{analysisData.filename}</td>
                         </tr>
                         <tr>
-                            <th>?? ??</th>
+                            <th>파일 크기</th>
                             <td>{analysisData.file_size ?? "245MB"}</td>
-                            <th>?? ??</th>
-                            <td>{analysisData.video_duration ?? "2? 34?"}</td>
+                            <th>영상 길이</th>
+                            <td>{analysisData.video_duration ?? "2분 34초"}</td>
                         </tr>
                         <tr>
-                            <th>???</th>
-                            <td>{analysisData.resolution ?? "1920?1080"}</td>
-                            <th>??? ???</th>
+                            <th>해상도</th>
+                            <td>{analysisData.resolution ?? "1920×1080"}</td>
+                            <th>프레임 레이트</th>
                             <td>{analysisData.frame_rate ?? "30fps"}</td>
                         </tr>
                         <tr>
-                            <th>?? ??</th>
+                            <th>분석 모델</th>
                             <td colSpan={3}>
                                 <div className="pdf-model-chips">
                                     {modelNames.map((name) => (
@@ -691,42 +691,42 @@ function PrintableReport({
                 </table>
 
                 <div className="pdf-section">
-                    <h2 className="pdf-section-title">1. ?? ??</h2>
+                    <h2 className="pdf-section-title">1. 최종 판정</h2>
                     <div className="pdf-verdict-box">
                         <div className="pdf-verdict-row">
-                            <span className="pdf-verdict-label">?? ??</span>
+                            <span className="pdf-verdict-label">판정 결과</span>
                             <span className="pdf-verdict-value" style={{ color: verdictColor }}>
                                 {verdictText}
                             </span>
                         </div>
                         <div className="pdf-verdict-desc">
-                            ?? ???? <b>{analysisData.overall_confidence_percent.toFixed(1)}%</b>??,
-                            ??? ?? ??? ??? ?? ??? ??????.
+                            전체 신뢰도는 <b>{analysisData.overall_confidence_percent.toFixed(1)}%</b>이며,
+                            프레임 분석 결과를 종합해 최종 판정을 도출했습니다.
                         </div>
                     </div>
                 </div>
 
                 <div className="pdf-section">
-                    <h2 className="pdf-section-title">2. ?? ?? ? ???? ?? ??? ??</h2>
+                    <h2 className="pdf-section-title">2. 핵심 지표 및 프레임별 위조 의심도 추이</h2>
 
                     <div className="pdf-metric-grid">
                         <div className="pdf-metric-card">
-                            <div className="pdf-metric-label">?? ??</div>
+                            <div className="pdf-metric-label">최종 판정</div>
                             <div className="pdf-metric-value">{verdictText}</div>
                         </div>
                         <div className="pdf-metric-card">
-                            <div className="pdf-metric-label">???</div>
+                            <div className="pdf-metric-label">신뢰도</div>
                             <div className="pdf-metric-value">
                                 {analysisData.overall_confidence_percent.toFixed(1)}%
                             </div>
                         </div>
                         <div className="pdf-metric-card">
-                            <div className="pdf-metric-label">?? ?? ???</div>
+                            <div className="pdf-metric-label">최고 의심 프레임</div>
                             <div className="pdf-metric-value">Frame {inlineFrameStats.peakIdx}</div>
                         </div>
                         <div className="pdf-metric-card">
-                            <div className="pdf-metric-label">?? ?? ?</div>
-                            <div className="pdf-metric-value">{inlineFrameStats.dangerCount}?</div>
+                            <div className="pdf-metric-label">위험 구간 수</div>
+                            <div className="pdf-metric-value">{inlineFrameStats.dangerCount}개</div>
                         </div>
                     </div>
 
@@ -744,14 +744,14 @@ function PrintableReport({
                                     <div className="pdf-frame-row">
                                         <div className="pdf-frame-title">
                                             Frame {frame.frame_idx}
-                                            {isTop && <span className="pdf-frame-top-badge">?? ??</span>}
+                                            {isTop && <span className="pdf-frame-top-badge">상위 의심</span>}
                                         </div>
                                         <div className="pdf-frame-prob">
                                             {frame.fake_prob.toFixed(1)}%
                                         </div>
                                     </div>
                                     <div className="pdf-frame-sub">
-                                        ?? ??? ??: {frame.frame_idx} / ???: {frame.risk}
+                                        실제 프레임 번호: {frame.frame_idx} / 위험도: {frame.risk}
                                     </div>
                                 </div>
                             );
@@ -760,28 +760,28 @@ function PrintableReport({
                 </div>
 
                 <div className="pdf-footer">
-                    ????: {reportDate} / ?? ID: {analysisData.analysis_id}
+                    생성일시: {reportDate} / 분석 ID: {analysisData.analysis_id}
                 </div>
             </div>
 
             <div className="pdf-page">
                 <div className="pdf-header">
                     <div>
-                        <h1 className="pdf-title">?? ?? ???</h1>
-                        <div className="pdf-subtitle">?? ?? ? ??? ??</div>
+                        <h1 className="pdf-title">분석 결과 보고서</h1>
+                        <div className="pdf-subtitle">상세 분석 및 히트맵 결과</div>
                     </div>
                     <div className="pdf-badge">2 Page</div>
                 </div>
 
                 <div className="pdf-section">
-                    <h2 className="pdf-section-title">3. ?? ?? ??</h2>
+                    <h2 className="pdf-section-title">3. 주요 분석 항목</h2>
                     <table className="pdf-analysis-table">
                         <thead>
                             <tr>
-                                <th style={{ width: "30%" }}>??</th>
-                                <th style={{ width: "14%" }}>???</th>
-                                <th style={{ width: "14%" }}>??</th>
-                                <th>??</th>
+                                <th style={{ width: "30%" }}>항목</th>
+                                <th style={{ width: "14%" }}>위험도</th>
+                                <th style={{ width: "14%" }}>점수</th>
+                                <th>설명</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -798,12 +798,12 @@ function PrintableReport({
                 </div>
 
                 <div className="pdf-section">
-                    <h2 className="pdf-section-title">4. ?? ??</h2>
+                    <h2 className="pdf-section-title">4. 종합 소견</h2>
                     <div className="pdf-summary-box">{compactSummary}</div>
                 </div>
 
                 <div className="pdf-section" style={{ marginTop: "auto" }}>
-                    <h2 className="pdf-section-title">5. ??? ???</h2>
+                    <h2 className="pdf-section-title">5. 히트맵 이미지</h2>
                     <div className="pdf-heatmap-grid">
                         {analysisData.heatmap_frames.slice(0, 4).map((frame, idx) => (
                             <div className="pdf-heatmap-card" key={`${frame.id}-${idx}`}>
@@ -815,12 +815,12 @@ function PrintableReport({
                                         crossOrigin="anonymous"
                                     />
                                 ) : (
-                                    <div className="pdf-heatmap-empty">??? ??? ??</div>
+                                    <div className="pdf-heatmap-empty">히트맵 이미지 없음</div>
                                 )}
                                 <div className="pdf-heatmap-meta">
                                     <div><b>{frame.id}</b></div>
-                                    <div>AI ?? ??: {frame.fake_prob.toFixed(2)}%</div>
-                                    <div>?? ?? ??: {frame.real_prob.toFixed(2)}%</div>
+                                    <div>AI 생성 의심: {frame.fake_prob.toFixed(2)}%</div>
+                                    <div>실제 영상 확률: {frame.real_prob.toFixed(2)}%</div>
                                 </div>
                             </div>
                         ))}
@@ -828,7 +828,7 @@ function PrintableReport({
                 </div>
 
                 <div className="pdf-footer">
-                    ????: {reportDate} / ?? ID: {analysisData.analysis_id}
+                    생성일시: {reportDate} / 분석 ID: {analysisData.analysis_id}
                 </div>
             </div>
         </div>
@@ -887,7 +887,7 @@ function FrameGraphPage({ onBack, analysisData }) {
                     maintainAspectRatio: false,
                     legacyPlugins: {
                         legend: { display: false },
-                        tooltip: { callbacks: { label: (c) => ` ?? ???: ${c.parsed.y.toFixed(2)}%` } },
+                        tooltip: { callbacks: { label: (c) => `위조 의심도: ${c.parsed.y.toFixed(2)}%` } },
                     },
                     scales: {
                         x: {
@@ -940,45 +940,45 @@ function FrameGraphPage({ onBack, analysisData }) {
                 .fg-heatmap-sub { color:#475569; font-size:12px; margin-top:-4px; }
             `}</style>
             <div className="fg-header">
-                <button className="fg-back-btn" onClick={onBack}>?? ???? ????</button>
-                <div style={{ fontSize: 16, fontWeight: 700, color: "#111827" }}>???? ?? ??? ??</div>
+                <button className="fg-back-btn" onClick={onBack}>결과 리포트로 돌아가기</button>
+                <div style={{ fontSize: 16, fontWeight: 700, color: "#111827" }}>프레임별 위조 의심도 분석</div>
             </div>
             <div className="fg-body">
                 <div className="fg-card">
-                    <h3 className="fg-card-title">???? ?? ??? ???</h3>
-                    <p style={{ fontSize: 12, color: "#9ca3af", margin: "0 0 16px" }}>? {timeline_chart.length}? ??? ??</p>
+                    <h3 className="fg-card-title">프레임별 위조 의심도 그래프</h3>
+                    <p style={{ fontSize: 12, color: "#9ca3af", margin: "0 0 16px" }}>총 {timeline_chart.length}개 프레임 분석</p>
                     <div className="fg-legend">
-                        <span><em style={{ background: "#E24B4A" }} />?? (70%+)</span>
-                        <span><em style={{ background: "#EF9F27" }} />?? (50~69%)</span>
-                        <span><em style={{ background: "#378ADD" }} />?? (50% ??)</span>
+                        <span><em style={{ background: "#E24B4A" }} />높음 (70%+)</span>
+                        <span><em style={{ background: "#EF9F27" }} />중간 (50~69%)</span>
+                        <span><em style={{ background: "#378ADD" }} />낮음 (50% 미만)</span>
                     </div>
                     <div style={{ position: "relative", width: "100%", height: 280 }}>
                         <canvas ref={chartRef} />
                     </div>
                     <div className="fg-stats">
                         <div className="fg-stat-box">
-                            <p className="fg-stat-label">?? ?? ???</p>
+                            <p className="fg-stat-label">평균 위조 의심도</p>
                             <p className="fg-stat-value">{frameStats.avg}%</p>
                         </div>
                         <div className="fg-stat-box">
-                            <p className="fg-stat-label">?? ?? ???</p>
+                            <p className="fg-stat-label">최고 의심 프레임</p>
                             <p className="fg-stat-value danger">Frame {frameStats.peakIdx}</p>
                         </div>
                         <div className="fg-stat-box">
-                            <p className="fg-stat-label">?? ?? ?</p>
-                            <p className="fg-stat-value danger">{frameStats.dangerCount}??</p>
+                            <p className="fg-stat-label">위험 구간 수</p>
+                            <p className="fg-stat-value danger">{frameStats.dangerCount}구간</p>
                         </div>
                     </div>
                 </div>
                 <div className="fg-card">
-                    <h3 className="fg-card-title" style={{ marginBottom: 6 }}>??? ??</h3>
+                    <h3 className="fg-card-title" style={{ marginBottom: 6 }}>히트맵 영상</h3>
                     <p style={{ fontSize: 12, color: "#9ca3af", margin: "0 0 16px" }}>
-                        ??? ?? ??? ???? ??? ???? ?????.
+                        위변조 의심 구간을 시각화한 히트맵 오버레이 영상입니다.
                     </p>
                     <div className="fg-heatmap-area">
-                        <div className="fg-heatmap-icon">???</div>
-                        <div className="fg-heatmap-label">??? ?? ??</div>
-                        <div className="fg-heatmap-sub">?? ?? ? ??? ???? ??? ?????.</div>
+                        <div className="fg-heatmap-icon">🎞️</div>
+                        <div className="fg-heatmap-label">히트맵 영상 영역</div>
+                        <div className="fg-heatmap-sub">분석 완료 후 히트맵 오버레이 영상을 표시합니다.</div>
                     </div>
                 </div>
             </div>
@@ -1018,7 +1018,7 @@ export default function GalleryPage() {
     const youtubeEmbedUrl = youtubeVideoId
         ? `https://www.youtube.com/embed/${youtubeVideoId}?rel=0&modestbranding=1&playsinline=1`
         : "";
-    const videoTitle = location.state?.displayTitle?.trim() || analysisData.filename || "??? ??";
+    const videoTitle = location.state?.displayTitle?.trim() || analysisData.filename || "분석 영상";
 
     const inlineFrameStats = useMemo(() => {
         const probs = analysisData.timeline_chart.map((f) => f.fake_prob);
@@ -1087,7 +1087,7 @@ export default function GalleryPage() {
                     },
                     legacyPlugins: {
                         legend: { display: false },
-                        tooltip: { callbacks: { label: (c) => ` ?? ???: ${c.parsed.y.toFixed(2)}%` } },
+                        tooltip: { callbacks: { label: (c) => `위조 의심도: ${c.parsed.y.toFixed(2)}%` } },
                     },
                     plugins: {
                         legend: { display: false },
@@ -1130,13 +1130,13 @@ export default function GalleryPage() {
         try {
             const target = reportCaptureRef.current;
             if (!target) {
-                alert("??? ??? ?? ? ????.");
+                alert("리포트 영역을 찾을 수 없습니다.");
                 return;
             }
 
             const pages = target.querySelectorAll(".pdf-page");
             if (!pages.length) {
-                alert("PDF ???? ?? ? ????.");
+                alert("PDF 페이지를 찾을 수 없습니다.");
                 return;
             }
 
@@ -1159,10 +1159,10 @@ export default function GalleryPage() {
                 pdf.addImage(imgData, "PNG", 0, 0, pdfWidth, pdfHeight);
             }
 
-            pdf.save(`${reportDate.replace(/[.: ]/g, "_")}_????.pdf`);
+            pdf.save(`${reportDate.replace(/[.: ]/g, "_")}_분석리포트.pdf`);
         } catch (error) {
             console.error(error);
-            alert("PDF ?? ? ??? ??????. ??? ??? ???.");
+            alert("PDF 저장 중 오류가 발생했습니다. 다시 시도해 주세요.");
         }
     };
 
@@ -1272,32 +1272,32 @@ export default function GalleryPage() {
                                     분석 리포트 PDF 다운로드
                                 </button>
                                 <button type="button" className="btn-back" onClick={() => navigate("/")}>
-                                    ???? ????
+                                    새 분석 하기
                                 </button>
                                 <div className="hamburger-wrap" ref={menuRef}>
                                     <button
                                         className={`hamburger-btn${menuOpen ? " open" : ""}`}
                                         onClick={() => setMenuOpen((v) => !v)}
-                                        aria-label="?? ??"
+                                        aria-label="추가 메뉴"
                                     >
                                         <span /><span /><span />
                                     </button>
                                     {menuOpen && (
                                         <div className="hamburger-dropdown">
-                                            <div className="hamburger-dropdown-header">?? ??</div>
+                                            <div className="hamburger-dropdown-header">추가 메뉴</div>
                                             <div className="menu-item" onClick={() => { setMenuOpen(false); setShowFrameGraph(true); }}>
-                                                <div className="menu-icon">??</div>
+                                                <div className="menu-icon">📈</div>
                                                 <div>
-                                                    <div className="menu-label-blue">???? ?? ??? ???</div>
-                                                    <div className="menu-sub">????? ??? ?? ??</div>
+                                                    <div className="menu-label-blue">프레임별 위조 의심도 분석</div>
+                                                    <div className="menu-sub">그래프를 크게 확인할 수 있습니다</div>
                                                 </div>
                                             </div>
                                             <div className="menu-divider" />
                                             <div className="menu-item" onClick={() => { setMenuOpen(false); navigate("/history"); }}>
-                                                <div className="menu-icon" style={{ background: "#f0fdf4" }}>??</div>
+                                                <div className="menu-icon" style={{ background: "#f0fdf4" }}>🕘</div>
                                                 <div>
-                                                    <div className="menu-label-gray">?? ????</div>
-                                                    <div className="menu-sub">?? ?? ?? ??</div>
+                                                    <div className="menu-label-gray">분석 히스토리</div>
+                                                    <div className="menu-sub">이전 분석 결과를 확인합니다</div>
                                                 </div>
                                             </div>
                                         </div>
@@ -1311,7 +1311,7 @@ export default function GalleryPage() {
                         <div className="card video-card">
                             <div className="card-head">
                                 <h3>{videoTitle}</h3>
-                                <span className={`badge ${isAiGenerated ? "warn" : "safe"}`}>{isAiGenerated ? "?? ??" : "?? ??"}</span>
+                                <span className={`badge ${isAiGenerated ? "warn" : "safe"}`}>{isAiGenerated ? "AI 생성 의심" : "정상 영상"}</span>
                             </div>
                             <div className="video-preview">
                                 {/* 유튜브 영상 재생하기 : 유튜브 링크 분석이면 iframe 플레이어를 우선 렌더링하고, 아니면 기존 video/img 미리보기를 사용한다. */}
@@ -1332,19 +1332,19 @@ export default function GalleryPage() {
                                         <img className="gallery-preview-image" src={previewSrc} alt={videoTitle} />
                                     )
                                 ) : (
-                                    <div className="vp-dummy">?? ????</div>
+                                    <div className="vp-dummy">미리보기 없음</div>
                                 )}
                             </div>
                             <div className={`verdict-banner ${isAiGenerated ? "danger" : "safe"}`}>
-                                <div className="verdict-icon">{isAiGenerated ? "??" : "?"}</div>
+                                <div className="verdict-icon">{isAiGenerated ? "⚠️" : "✅"}</div>
                                 <div className="verdict-text">
                                     <div className="verdict-title">
-                                        {isAiGenerated ? "? ??? AI ?????." : "? ??? AI ??? ????."}
+                                        {isAiGenerated ? "이 영상은 AI 생성 의심 상태입니다." : "이 영상은 AI 생성 징후가 낮습니다."}
                                     </div>
                                     <div className="verdict-desc">
                                         {isAiGenerated
-                                            ? "AI ????? ???? ?? ???? ?????."
-                                            : `??? ${trustScore}%? ?? ???? ?????.`}
+                                            ? "AI 생성 흔적이 다수의 핵심 프레임에서 감지되었습니다."
+                                            : `신뢰도 ${trustScore}%로 정상 영상으로 판단됩니다.`}
                                     </div>
                                 </div>
                                 <div className="verdict-pill">{trustScore}%</div>
@@ -1353,24 +1353,24 @@ export default function GalleryPage() {
 
                         <div className="side-col">
                             <div className="card">
-                                <h4 className="mini-title">???</h4>
+                                <h4 className="mini-title">신뢰도</h4>
                                 <div className="trust">
                                     <div className="trust-num">{trustScore}%</div>
-                                    <div className="trust-sub">? ?? ??? ?? ??</div>
+                                    <div className="trust-sub">AI 생성 가능성 반대 지표</div>
                                 </div>
                             </div>
                             <div className="card">
-                                <h4 className="mini-title">?? ??</h4>
+                                <h4 className="mini-title">영상 정보</h4>
                                 <ul className="info-list">
-                                    <li><span>?? ??</span><b>{analysisData.analysis_time ?? "14.2?"}</b></li>
-                                    <li><span>?? ??</span><b>{analysisData.video_duration ?? "2? 34?"}</b></li>
-                                    <li><span>???</span><b>{analysisData.resolution ?? "1920?1080"}</b></li>
-                                    <li><span>??? ???</span><b>{analysisData.frame_rate ?? "30fps"}</b></li>
-                                    <li><span>?? ??</span><b>{analysisData.file_size ?? "245MB"}</b></li>
+                                    <li><span>분석 시간</span><b>{analysisData.analysis_time ?? "14.2초"}</b></li>
+                                    <li><span>영상 길이</span><b>{analysisData.video_duration ?? "2분 34초"}</b></li>
+                                    <li><span>해상도</span><b>{analysisData.resolution ?? "1920×1080"}</b></li>
+                                    <li><span>프레임 속도</span><b>{analysisData.frame_rate ?? "30fps"}</b></li>
+                                    <li><span>파일 크기</span><b>{analysisData.file_size ?? "245MB"}</b></li>
                                 </ul>
                             </div>
                             <div className="card">
-                                <h4 className="mini-title">?? ??</h4>
+                                <h4 className="mini-title">사용 모델</h4>
                                 <div className="chips">
                                     <span className="chip">Vision Transformer</span>
                                     <span className="chip">ResNet-50</span>
@@ -1383,18 +1383,18 @@ export default function GalleryPage() {
                     <div className="card section-card">
                         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", flexWrap: "wrap", gap: 8, marginBottom: 16 }}>
                             <div>
-                                <h3 className="section-title" style={{ marginBottom: 4 }}>???? ?? ??? ???</h3>
-                                <p className="hint" style={{ marginTop: 0 }}>? {analysisData.timeline_chart.length}? ??? ??</p>
+                                <h3 className="section-title" style={{ marginBottom: 4 }}>프레임별 위조 의심도 그래프</h3>
+                                <p className="hint" style={{ marginTop: 0 }}>총 {analysisData.timeline_chart.length}개 프레임 분석</p>
                             </div>
                             <div style={{ display: "flex", gap: 14, flexWrap: "wrap", alignItems: "center" }}>
                                 <span style={{ display: "flex", alignItems: "center", gap: 5, fontSize: 12, color: "#6b7280" }}>
-                                    <em style={{ display: "inline-block", width: 10, height: 10, borderRadius: 2, background: "#E24B4A", fontStyle: "normal" }} />?? (70%+)
+                                    <em style={{ display: "inline-block", width: 10, height: 10, borderRadius: 2, background: "#E24B4A", fontStyle: "normal" }} />높음 (70%+)
                                 </span>
                                 <span style={{ display: "flex", alignItems: "center", gap: 5, fontSize: 12, color: "#6b7280" }}>
-                                    <em style={{ display: "inline-block", width: 10, height: 10, borderRadius: 2, background: "#EF9F27", fontStyle: "normal" }} />?? (50~69%)
+                                    <em style={{ display: "inline-block", width: 10, height: 10, borderRadius: 2, background: "#EF9F27", fontStyle: "normal" }} />중간 (50~69%)
                                 </span>
                                 <span style={{ display: "flex", alignItems: "center", gap: 5, fontSize: 12, color: "#6b7280" }}>
-                                    <em style={{ display: "inline-block", width: 10, height: 10, borderRadius: 2, background: "#378ADD", fontStyle: "normal" }} />?? (50% ??)
+                                    <em style={{ display: "inline-block", width: 10, height: 10, borderRadius: 2, background: "#378ADD", fontStyle: "normal" }} />낮음 (50% 미만)
                                 </span>
                             </div>
                         </div>
@@ -1403,34 +1403,34 @@ export default function GalleryPage() {
                         </div>
                         <div style={{ display: "grid", gridTemplateColumns: "repeat(3,1fr)", gap: 8, marginTop: 16 }}>
                             <div style={{ background: "#f9fafb", borderRadius: 10, padding: 12, textAlign: "center" }}>
-                                <p style={{ fontSize: 11, color: "#9ca3af", margin: "0 0 4px" }}>?? ?? ???</p>
+                                <p style={{ fontSize: 11, color: "#9ca3af", margin: "0 0 4px" }}>평균 위조 의심도</p>
                                 <p style={{ fontSize: 20, fontWeight: 600, color: "#111827", margin: 0 }}>{inlineFrameStats.avg}%</p>
                             </div>
                             <div style={{ background: "#f9fafb", borderRadius: 10, padding: 12, textAlign: "center" }}>
-                                <p style={{ fontSize: 11, color: "#9ca3af", margin: "0 0 4px" }}>?? ?? ???</p>
+                                <p style={{ fontSize: 11, color: "#9ca3af", margin: "0 0 4px" }}>최고 의심 프레임</p>
                                 <p style={{ fontSize: 20, fontWeight: 600, color: "#E24B4A", margin: 0 }}>Frame {inlineFrameStats.peakIdx}</p>
                             </div>
                             <div style={{ background: "#f9fafb", borderRadius: 10, padding: 12, textAlign: "center" }}>
-                                <p style={{ fontSize: 11, color: "#9ca3af", margin: "0 0 4px" }}>?? ?? ?</p>
-                                <p style={{ fontSize: 20, fontWeight: 600, color: "#E24B4A", margin: 0 }}>{inlineFrameStats.dangerCount}??</p>
+                                <p style={{ fontSize: 11, color: "#9ca3af", margin: "0 0 4px" }}>위험 구간 수</p>
+                                <p style={{ fontSize: 20, fontWeight: 600, color: "#E24B4A", margin: 0 }}>{inlineFrameStats.dangerCount}구간</p>
                             </div>
                         </div>
                     </div>
 
                     <div className="card section-card">
-                        <h3 className="section-title">?? ?? ??</h3>
+                        <h3 className="section-title">세부 분석 결과</h3>
                         {publicItems.map((item, i) => (
                             <div className="detail-item" key={`pub-${i}`}>
                                 <div className="d-left">
                                     <div className="d-title">
                                         {item.title}{" "}
-                                        <span className={`tag ${riskTag(item.risk_level)}`}>??? {item.risk_level}</span>
+                                        <span className={`tag ${riskTag(item.risk_level)}`}>위험도 {item.risk_level}</span>
                                     </div>
                                     <div className="d-desc">{item.description}</div>
                                 </div>
                                 <div className="d-right">
                                     <div className="d-percent">{item.score_percent}%</div>
-                                    <div className="d-sub">???</div>
+                                    <div className="d-sub">의심도</div>
                                 </div>
                                 <div className={`d-bar ${riskTag(item.risk_level)}`}>
                                     <span style={{ width: `${item.score_percent}%` }} />
@@ -1445,13 +1445,13 @@ export default function GalleryPage() {
                                             <div className="d-left">
                                                 <div className="d-title">
                                                     {item.title}{" "}
-                                                    <span className={`tag ${riskTag(item.risk_level)}`}>??? {item.risk_level}</span>
+                                                    <span className={`tag ${riskTag(item.risk_level)}`}>위험도 {item.risk_level}</span>
                                                 </div>
                                                 <div className="d-desc">{item.description}</div>
                                             </div>
                                             <div className="d-right">
                                                 <div className="d-percent">{item.score_percent}%</div>
-                                                <div className="d-sub">???</div>
+                                                <div className="d-sub">의심도</div>
                                             </div>
                                             <div className={`d-bar ${riskTag(item.risk_level)}`}>
                                                 <span style={{ width: `${item.score_percent}%` }} />
@@ -1461,13 +1461,13 @@ export default function GalleryPage() {
                                 </div>
                                 {!isPro && (
                                     <div className="pro-lock-overlay">
-                                        <div className="pro-lock-icon">??</div>
-                                        <div className="pro-lock-title">Pro ?? ?? ??</div>
+                                        <div className="pro-lock-icon">🔒</div>
+                                        <div className="pro-lock-title">Pro 전용 분석 항목</div>
                                         <div className="pro-lock-desc">
-                                            ??? ??, ?? ??, ?? ?? ???<br />Pro ?? ? ?? ?????.
+                                            얼굴 영역, 음성 패턴, 장면 전환 분석은<br />Pro 구독 시 확인할 수 있습니다.
                                         </div>
-                                        <button className="pro-lock-btn" onClick={() => alert("Pro ????? ???? ?????.")}>
-                                            Pro ????
+                                        <button className="pro-lock-btn" onClick={() => alert("Pro 구독은 준비 중입니다.")}>
+                                            Pro 알아보기
                                         </button>
                                     </div>
                                 )}
@@ -1477,19 +1477,19 @@ export default function GalleryPage() {
 
                     {analysisData.heatmap_frames && analysisData.heatmap_frames.length > 0 && (
                         <div className="card section-card">
-                            <h3 className="section-title">AI ?? ?? ?? ???</h3>
+                            <h3 className="section-title">AI 생성 의심 프레임</h3>
                             <p className="hint" style={{ marginTop: 0, marginBottom: 16 }}>
-                                AI? ????? ?? ??? ???? ???? ??????.
+                                AI가 주목한 핵심 프레임을 히트맵 이미지로 제공합니다.
                             </p>
                             <div className="heatmap-result-badge">
                                 <div className="heatmap-badge-circle">
-                                    <span className="heatmap-badge-label">??</span>
+                                    <span className="heatmap-badge-label">의심</span>
                                     <span className="heatmap-badge-count">
                                         {analysisData.heatmap_frames.filter((f) => f.fake_prob >= 50).length}
                                         <span style={{ fontSize: 14, fontWeight: 600 }}>/{analysisData.heatmap_frames.length}</span>
                                     </span>
                                 </div>
-                                <span style={{ fontSize: 14, fontWeight: 700, color: "#111827" }}>AI ?? ?? ?? ??</span>
+                                <span style={{ fontSize: 14, fontWeight: 700, color: "#111827" }}>AI 생성 의심 프레임 비율</span>
                             </div>
                             <div className="heatmap-grid">
                                 {analysisData.heatmap_frames.map((frame) => (
@@ -1497,12 +1497,12 @@ export default function GalleryPage() {
                                         {frame.image ? (
                                             <HeatmapImage className="heatmap-image" path={frame.image} alt={frame.id} />
                                         ) : (
-                                            <div className="heatmap-placeholder">??? ???</div>
+                                            <div className="heatmap-placeholder">이미지 없음</div>
                                         )}
                                         <div className="heatmap-cell-id">{frame.id}</div>
                                         <div className="heatmap-cell-footer">
-                                            <div className="heatmap-cell-row"><span className="heatmap-fake-label">AI ??</span><span className="heatmap-fake-val">{frame.fake_prob.toFixed(2)}%</span></div>
-                                            <div className="heatmap-cell-row"><span className="heatmap-real-label">?? ??</span><span className="heatmap-real-val">{frame.real_prob.toFixed(2)}%</span></div>
+                                            <div className="heatmap-cell-row"><span className="heatmap-fake-label">AI 의심</span><span className="heatmap-fake-val">{frame.fake_prob.toFixed(2)}%</span></div>
+                                            <div className="heatmap-cell-row"><span className="heatmap-real-label">정상 확률</span><span className="heatmap-real-val">{frame.real_prob.toFixed(2)}%</span></div>
                                         </div>
                                     </div>
                                 ))}
