@@ -2,7 +2,7 @@ import React, { useMemo, useState, useEffect, useRef } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import jsPDF from "jspdf";
 import html2canvas from "html2canvas";
-import { fetchNgrokImage } from "../services/api";
+import { resolveGalleryImageUrl } from "../services/api";
 
 // ─────────────────────────────────────────────────────────────
 // 임시 JSON 데이터 (실제 서비스에서는 API 응답으로 교체)
@@ -89,36 +89,7 @@ function pointColorFromProb(prob) {
 }
 
 function HeatmapImage({ path, alt, className }) {
-    const [imgSrc, setImgSrc] = useState("");
-
-    useEffect(() => {
-        let objectUrl = "";
-        let cancelled = false;
-
-        if (!path) {
-            setImgSrc("");
-            return undefined;
-        }
-
-        fetchNgrokImage(path)
-            .then((url) => {
-                if (cancelled) {
-                    URL.revokeObjectURL(url);
-                    return;
-                }
-                objectUrl = url;
-                setImgSrc(url);
-            })
-            .catch(() => {
-                if (!cancelled) setImgSrc("");
-            });
-
-        return () => {
-            cancelled = true;
-            if (objectUrl) URL.revokeObjectURL(objectUrl);
-        };
-    }, [path]);
-
+    const imgSrc = useMemo(() => resolveGalleryImageUrl(path), [path]);
     if (!imgSrc) {
         return null;
     }

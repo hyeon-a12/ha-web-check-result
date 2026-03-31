@@ -39,7 +39,7 @@ const buildAnalyzeUrl = (kind) => {
     return `${ANALYZE_API_BASE_URL}/analyze/${kind}`;
 };
 
-const resolveGalleryImageUrl = (path) => {
+export const resolveGalleryImageUrl = (path) => {
     if (!path) return "";
     if (/^https?:\/\//i.test(path) || path.startsWith("data:") || path.startsWith("blob:")) {
         return path;
