@@ -92,15 +92,61 @@ function normalizeBaseUrl(base) {
     return base.endsWith("/") ? base.slice(0, -1) : base;
 }
 
-function resolveAnalyzeAssetUrl(path) {
-    if (!path) return null;
+function buildAnalyzeAssetUrlCandidates(path) {
+    if (!path) return [];
     if (/^https?:\/\//i.test(path) || path.startsWith("data:") || path.startsWith("blob:")) {
-        return path;
+        return [path];
     }
 
     const normalizedPath = path.startsWith("/") ? path : `/${path}`;
+    const candidates = [];
     const analyzeBaseUrl = normalizeBaseUrl(process.env.REACT_APP_ANALYZE_API_BASE_URL);
-    return analyzeBaseUrl ? `${analyzeBaseUrl}${normalizedPath}` : normalizedPath;
+    const apiBaseUrl = normalizeBaseUrl(process.env.REACT_APP_API_BASE_URL);
+    const currentOrigin =
+        typeof window !== "undefined" && window.location?.origin
+            ? normalizeBaseUrl(window.location.origin)
+            : "";
+
+    if (analyzeBaseUrl) candidates.push(`${analyzeBaseUrl}${normalizedPath}`);
+    if (apiBaseUrl && apiBaseUrl !== analyzeBaseUrl) candidates.push(`${apiBaseUrl}${normalizedPath}`);
+    if (currentOrigin && currentOrigin !== analyzeBaseUrl && currentOrigin !== apiBaseUrl) {
+        candidates.push(`${currentOrigin}${normalizedPath}`);
+    }
+    candidates.push(normalizedPath);
+
+    return [...new Set(candidates)];
+}
+
+function HeatmapImage({ path, alt, className }) {
+    const candidates = useMemo(() => buildAnalyzeAssetUrlCandidates(path), [path]);
+    const [candidateIndex, setCandidateIndex] = useState(0);
+
+    useEffect(() => {
+        setCandidateIndex(0);
+    }, [path]);
+
+    if (!candidates.length) {
+        return null;
+    }
+
+    return (
+        <img
+            className={className}
+            src={candidates[candidateIndex]}
+            alt={alt}
+            onError={() => {
+                setCandidateIndex((current) => {
+                    if (current >= candidates.length - 1) return current;
+                    return current + 1;
+                });
+            }}
+        />
+    );
+}
+
+function resolveAnalyzeAssetUrl(path) {
+    const [firstCandidate] = buildAnalyzeAssetUrlCandidates(path);
+    return firstCandidate || null;
 }
 
 function getClosestHeatmapFrame(frameIdx, heatmapFrames) {
@@ -1466,7 +1512,7 @@ export default function GalleryPage() {
                                 {analysisData.heatmap_frames.map((frame) => (
                                     <div className="heatmap-cell" key={frame.id}>
                                         {frame.image ? (
-                                            <img className="heatmap-image" src={frame.image} alt={frame.id} />
+                                            <HeatmapImage className="heatmap-image" path={frame.image} alt={frame.id} />
                                         ) : (
                                             <div className="heatmap-placeholder">히트맵 이미지</div>
                                         )}
