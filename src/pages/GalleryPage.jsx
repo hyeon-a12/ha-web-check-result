@@ -103,20 +103,15 @@ function HeatmapImage({ path, alt, className }) {
     );
 }
 
-function getClosestHeatmapFrame(frameIdx, heatmapFrames) {
+function getExactHeatmapFrame(frameIdx, heatmapFrames) {
     if (!Number.isFinite(frameIdx) || !Array.isArray(heatmapFrames) || heatmapFrames.length === 0) {
         return null;
     }
 
-    return heatmapFrames.reduce((closest, frame) => {
+    return heatmapFrames.find((frame) => {
         const candidateIdx = Number(frame.frame_index);
-        if (!Number.isFinite(candidateIdx)) return closest;
-        if (!closest) return frame;
-
-        const currentGap = Math.abs(candidateIdx - frameIdx);
-        const closestGap = Math.abs(Number(closest.frame_index) - frameIdx);
-        return currentGap < closestGap ? frame : closest;
-    }, null);
+        return Number.isFinite(candidateIdx) && candidateIdx === frameIdx;
+    }) || null;
 }
 
 function getOrCreateChartTooltip(chart) {
@@ -165,7 +160,7 @@ function buildHeatmapTooltipHandler(heatmapFrames) {
                 : null;
         const frameIdx = Number(frame?.frame_idx);
         const fakeProb = Number(frame?.fake_prob ?? point?.parsed?.y ?? 0);
-        const matchedHeatmap = getClosestHeatmapFrame(frameIdx, heatmapFrames);
+        const matchedHeatmap = getExactHeatmapFrame(frameIdx, heatmapFrames);
         const imageMarkup = matchedHeatmap?.image
             ? `<img src="${matchedHeatmap.image}" alt="Frame ${frameIdx} heatmap" style="display:block;width:216px;height:216px;object-fit:cover;border-radius:8px;background:#111827;" />`
             : `<div style="width:216px;height:216px;display:flex;align-items:center;justify-content:center;border-radius:8px;background:#1f2937;color:#9ca3af;font-size:12px;font-weight:700;">No image</div>`;
@@ -177,7 +172,7 @@ function buildHeatmapTooltipHandler(heatmapFrames) {
                     <div style="font-size:12px;font-weight:800;line-height:1.2;">Frame ${frameIdx}</div>
                     <div style="font-size:11px;color:#d1d5db;line-height:1.45;margin-top:4px;">위조 의심도 ${fakeProb.toFixed(2)}%</div>
                     <div style="font-size:10px;color:#9ca3af;line-height:1.4;margin-top:4px;">
-                        ${matchedHeatmap?.frame_index ? `히트맵 기준 Frame ${matchedHeatmap.frame_index}` : "히트맵 이미지 없음"}
+                        ${matchedHeatmap?.frame_index ? `히트맵 Frame ${matchedHeatmap.frame_index}` : "일치하는 히트맵 이미지 없음"}
                     </div>
                 </div>
             </div>
