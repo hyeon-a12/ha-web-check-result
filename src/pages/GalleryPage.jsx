@@ -139,7 +139,7 @@ function getOrCreateChartTooltip(chart) {
         tooltipEl.style.opacity = "0";
         tooltipEl.style.transition = "opacity .12s ease";
         tooltipEl.style.zIndex = "20";
-        tooltipEl.style.minWidth = "150px";
+        tooltipEl.style.minWidth = "216px";
         parent.style.position = "relative";
         parent.appendChild(tooltipEl);
     }
@@ -167,11 +167,11 @@ function buildHeatmapTooltipHandler(heatmapFrames) {
         const fakeProb = Number(frame?.fake_prob ?? point?.parsed?.y ?? 0);
         const matchedHeatmap = getClosestHeatmapFrame(frameIdx, heatmapFrames);
         const imageMarkup = matchedHeatmap?.image
-            ? `<img src="${matchedHeatmap.image}" alt="Frame ${frameIdx} heatmap" style="display:block;width:72px;height:72px;object-fit:cover;border-radius:8px;background:#111827;" />`
-            : `<div style="width:72px;height:72px;display:flex;align-items:center;justify-content:center;border-radius:8px;background:#1f2937;color:#9ca3af;font-size:10px;font-weight:700;">No image</div>`;
+            ? `<img src="${matchedHeatmap.image}" alt="Frame ${frameIdx} heatmap" style="display:block;width:216px;height:216px;object-fit:cover;border-radius:8px;background:#111827;" />`
+            : `<div style="width:216px;height:216px;display:flex;align-items:center;justify-content:center;border-radius:8px;background:#1f2937;color:#9ca3af;font-size:12px;font-weight:700;">No image</div>`;
 
         tooltipEl.innerHTML = `
-            <div style="display:flex;align-items:flex-start;gap:10px;">
+            <div style="display:flex;flex-direction:column;align-items:flex-start;gap:10px;">
                 ${imageMarkup}
                 <div style="min-width:0;">
                     <div style="font-size:12px;font-weight:800;line-height:1.2;">Frame ${frameIdx}</div>
@@ -188,6 +188,19 @@ function buildHeatmapTooltipHandler(heatmapFrames) {
         tooltipEl.style.top = `${offsetTop + tooltip.caretY}px`;
         tooltipEl.style.opacity = "1";
     };
+}
+
+function formatAnalysisTime(rawValue) {
+    if (rawValue == null || rawValue === "") {
+        return undefined;
+    }
+
+    const numericValue = Number(rawValue);
+    if (Number.isFinite(numericValue)) {
+        return `${numericValue.toFixed(1)}초`;
+    }
+
+    return rawValue;
 }
 
 // PDF 전용 보고서 컴포넌트
@@ -1333,7 +1346,7 @@ export default function GalleryPage() {
                             <div className="card">
                                 <h4 className="mini-title">영상 정보</h4>
                                 <ul className="info-list">
-                                    <li><span>분석 시간</span><b>{analysisData.analysis_time ?? "14.2초"}</b></li>
+                                    <li><span>분석 시간</span><b>{analysisData.analysis_time ?? "-"}</b></li>
                                     <li><span>영상 길이</span><b>{analysisData.video_duration ?? "2분 34초"}</b></li>
                                     <li><span>해상도</span><b>{analysisData.resolution ?? "1920×1080"}</b></li>
                                     <li><span>프레임 속도</span><b>{analysisData.frame_rate ?? "30fps"}</b></li>
@@ -1537,7 +1550,7 @@ function normalizeAnalysisData(analysis, fallbackPreviewSrc, fallbackTitle) {
         detailed_analysis: Array.isArray(source.detailed_analysis) && source.detailed_analysis.length > 0
             ? source.detailed_analysis
             : MOCK_ANALYSIS.detailed_analysis,
-        analysis_time: source.analysis_time || (source.processTimeSeconds ? `${Number(source.processTimeSeconds).toFixed(1)}초` : undefined),
+        analysis_time: source.analysis_time || formatAnalysisTime(source.processTimeSeconds),
         video_duration: source.video_duration || source.duration,
         resolution: source.resolution,
         frame_rate: source.frame_rate || source.frameRate,

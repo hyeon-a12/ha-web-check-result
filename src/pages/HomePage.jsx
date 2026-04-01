@@ -40,23 +40,27 @@ export default function HomePage() {
             return;
         }
 
+        const analysisStartedAt = performance.now();
+
         if (tab === "url") {
             setUrlMeta(null);
             setAnalysisResult(null);
             setPreviewSrc("");
             setPreviewKind("image");
+            setLoadingOpen(true);
 
             try {
                 const info = await fetchYoutubeInfo(urlValue.trim());
                 setUrlMeta(info);
                 setPreviewSrc(info.thumbnail || "");
                 setPreviewKind("image");
-                setLoadingOpen(true);
 
                 const analysis = await analyzeVideoLink(urlValue.trim());
+                const elapsedSeconds = (performance.now() - analysisStartedAt) / 1000;
                 setAnalysisResult({
                     ...info,
                     ...analysis,
+                    analysis_time: `${elapsedSeconds.toFixed(1)}초`,
                 });
             } catch (error) {
                 console.error(error);
@@ -72,7 +76,11 @@ export default function HomePage() {
 
         try {
             const analysis = await analyzeVideoFile(selectedFile);
-            setAnalysisResult(analysis);
+            const elapsedSeconds = (performance.now() - analysisStartedAt) / 1000;
+            setAnalysisResult({
+                ...analysis,
+                analysis_time: `${elapsedSeconds.toFixed(1)}초`,
+            });
         } catch (error) {
             console.error(error);
             alert(error?.message || "파일 분석 중 오류가 발생했습니다.");
