@@ -236,6 +236,21 @@ function buildReportPayload(analysisData) {
     };
 }
 
+function buildChartTooltipFrame(frame, heatmapFrame) {
+    if (!frame) return null;
+
+    const fakeProb = Number(heatmapFrame?.fake_prob ?? frame.fake_prob ?? 0);
+    const realProb = Number(heatmapFrame?.real_prob ?? Math.max(0, 100 - fakeProb));
+
+    return {
+        frame_idx: frame.frame_idx,
+        fake_prob: fakeProb,
+        real_prob: realProb,
+        risk: frame.risk ?? heatmapFrame?.risk ?? (fakeProb >= 70 ? "높음" : fakeProb >= 50 ? "중간" : "낮음"),
+        image: heatmapFrame?.image || null,
+    };
+}
+
 // ─────────────────────────────────────────────────────────────
 // 재사용 히트맵 갤러리
 // ─────────────────────────────────────────────────────────────
@@ -249,6 +264,7 @@ function HeatmapGallerySection({
         [frames]
     );
 
+    const [activeSection, setActiveSection] = useState("featured");
     const [selectedFrameId, setSelectedFrameId] = useState(remaining[0]?.id ?? null);
 
     useEffect(() => {
@@ -323,6 +339,17 @@ function HeatmapGallerySection({
                     font-size:12px;
                     font-weight:700;
                     border:1px solid #bfdbfe;
+                    cursor:pointer;
+                    transition:all .15s ease;
+                }
+                .heatmap-guide-chip.active {
+                    background:#dbeafe;
+                    color:#1d4ed8;
+                    border-color:#93c5fd;
+                    box-shadow:inset 0 0 0 1px #93c5fd;
+                }
+                .heatmap-guide-chip:hover {
+                    background:#dbeafe;
                 }
                 .heatmap-gallery-block + .heatmap-gallery-block {
                     margin-top:24px;
@@ -454,16 +481,16 @@ function HeatmapGallerySection({
                 }
                 .heatmap-gallery-preview {
                     display:grid;
-                    grid-template-columns:minmax(280px, 1.2fr) minmax(220px, .8fr);
+                    grid-template-columns:minmax(160px, 0.7fr) minmax(260px, 1.3fr);
                     gap:16px;
-                    align-items:stretch;
+                    align-items:start;
                 }
                 .heatmap-preview-card {
                     position:relative;
                     border-radius:16px;
                     overflow:hidden;
                     background:#0f172a;
-                    min-height:340px;
+                    min-height:170px;
                     border:1px solid #1e293b;
                     box-shadow:0 6px 18px rgba(15,23,42,.12);
                 }
@@ -476,7 +503,7 @@ function HeatmapGallerySection({
                 .heatmap-preview-placeholder {
                     width:100%;
                     height:100%;
-                    min-height:340px;
+                    min-height:170px;
                     display:flex;
                     align-items:center;
                     justify-content:center;
@@ -572,11 +599,23 @@ function HeatmapGallerySection({
                         </div>
                         <span className="heatmap-badge-title">의심 프레임 감지</span>
                     </div>
-                    <span className="heatmap-guide-chip">상위 4개 프레임 우선 노출</span>
-                    <span className="heatmap-guide-chip">나머지는 탭형 갤러리로 확인</span>
+                    <button
+                        type="button"
+                        className={`heatmap-guide-chip${activeSection === "featured" ? " active" : ""}`}
+                        onClick={() => setActiveSection("featured")}
+                    >
+                        상위 4개 프레임 우선 노출
+                    </button>
+                    <button
+                        type="button"
+                        className={`heatmap-guide-chip${activeSection === "remaining" ? " active" : ""}`}
+                        onClick={() => setActiveSection("remaining")}
+                    >
+                        나머지 프레임 아래에서 확인
+                    </button>
                 </div>
 
-                {featured.length > 0 && (
+                {featured.length > 0 && activeSection === "featured" && (
                     <div className="heatmap-gallery-block">
                         <h4 className="heatmap-subtitle">위조 확률 상위 4개 프레임</h4>
                         <p className="heatmap-subdesc">
@@ -615,7 +654,7 @@ function HeatmapGallerySection({
                     </div>
                 )}
 
-                {remaining.length > 0 && (
+                {remaining.length > 0 && activeSection === "remaining" && (
                     <div className="heatmap-gallery-block">
                         <h4 className="heatmap-subtitle">나머지 프레임 갤러리</h4>
                         <p className="heatmap-subdesc">
@@ -701,6 +740,7 @@ function FrameGraphPage({ onBack, analysisData }) {
     const chartRef = useRef(null);
     const chartInstance = useRef(null);
     const { timeline_chart } = analysisData;
+    const [hoveredFrame, setHoveredFrame] = useState(null);
 
     const displayHeatmapFrames = useMemo(
         () => normalizeHeatmapFrames(analysisData),
@@ -752,7 +792,27 @@ function FrameGraphPage({ onBack, analysisData }) {
                     maintainAspectRatio: false,
                     plugins: {
                         legend: { display: false },
-                        tooltip: { callbacks: { label: (c) => ` 위조 확률: ${c.parsed.y.toFixed(2)}%` } },
+                        tooltip: {
+                            enabled: false,
+                            external: ({ tooltip }) => {
+                                if (!tooltip || tooltip.opacity === 0 || !tooltip.dataPoints?.length) {
+                                    setHoveredFrame(null);
+                                    return;
+                                }
+
+                                const point = tooltip.dataPoints[0];
+                                const frame = timeline_chart[point.dataIndex];
+                                const heatmapFrame = displayHeatmapFrames.find(
+                                    (item) => item.frame_idx === frame?.frame_idx
+                                );
+
+                                setHoveredFrame({
+                                    ...buildChartTooltipFrame(frame, heatmapFrame),
+                                    x: tooltip.caretX,
+                                    y: tooltip.caretY,
+                                });
+                            },
+                        },
                     },
                     scales: {
                         x: {
@@ -778,7 +838,7 @@ function FrameGraphPage({ onBack, analysisData }) {
             document.body.appendChild(s);
         }
         return () => { if (chartInstance.current) chartInstance.current.destroy(); };
-    }, [timeline_chart]);
+    }, [displayHeatmapFrames, timeline_chart]);
 
     return (
         <div style={{ minHeight: "100vh", background: "#f8fafc", fontFamily: "inherit" }}>
@@ -830,6 +890,53 @@ function FrameGraphPage({ onBack, analysisData }) {
                     </div>
                     <div style={{ position: "relative", width: "100%", height: 280 }}>
                         <canvas ref={chartRef} />
+                        {hoveredFrame && (
+                            <div
+                                style={{
+                                    position: "absolute",
+                                    left: Math.min(Math.max(hoveredFrame.x + 12, 12), 700),
+                                    top: Math.max(hoveredFrame.y - 240, 8),
+                                    width: 260,
+                                    background: "rgba(15,23,42,0.96)",
+                                    color: "#fff",
+                                    borderRadius: 12,
+                                    overflow: "hidden",
+                                    boxShadow: "0 12px 28px rgba(15,23,42,.28)",
+                                    pointerEvents: "none",
+                                    zIndex: 4,
+                                }}
+                            >
+                                {hoveredFrame.image ? (
+                                    <img
+                                        src={hoveredFrame.image}
+                                        alt={`frame-${hoveredFrame.frame_idx}`}
+                                        style={{ width: "100%", height: 192, objectFit: "cover", display: "block" }}
+                                    />
+                                ) : (
+                                    <div
+                                        style={{
+                                            width: "100%",
+                                            height: 192,
+                                            display: "flex",
+                                            alignItems: "center",
+                                            justifyContent: "center",
+                                            background: "#1e293b",
+                                            color: "#cbd5e1",
+                                            fontSize: 12,
+                                            fontWeight: 700,
+                                        }}
+                                    >
+                                        히트맵 없음
+                                    </div>
+                                )}
+                                <div style={{ padding: "10px 12px", display: "grid", gap: 4 }}>
+                                    <div style={{ fontSize: 12, fontWeight: 800 }}>Frame {hoveredFrame.frame_idx}</div>
+                                    <div style={{ fontSize: 12, color: "#fca5a5" }}>위조 확률 {hoveredFrame.fake_prob.toFixed(2)}%</div>
+                                    <div style={{ fontSize: 12, color: "#93c5fd" }}>실제 확률 {hoveredFrame.real_prob.toFixed(2)}%</div>
+                                    <div style={{ fontSize: 11, color: "#cbd5e1" }}>위험도: {hoveredFrame.risk}</div>
+                                </div>
+                            </div>
+                        )}
                     </div>
                     <div className="fg-stats">
                         <div className="fg-stat-box">
@@ -869,6 +976,10 @@ export default function GalleryPage() {
         () => normalizeAnalysisData(location.state?.analysis),
         [location.state]
     );
+    const previewSrc = location.state?.previewSrc || "";
+    const previewKind = location.state?.previewKind || "image";
+    const videoId = location.state?.videoId || "";
+    const displayTitle = location.state?.displayTitle || analysisData.filename || "분석 영상";
     const isPro = false;
 
     const isAiGenerated = analysisData.final_prediction === "FAKE";
@@ -877,6 +988,7 @@ export default function GalleryPage() {
     const [showFrameGraph, setShowFrameGraph] = useState(false);
     const [menuOpen, setMenuOpen] = useState(false);
     const [forensicOpinion, setForensicOpinion] = useState("");
+    const [hoveredInlineFrame, setHoveredInlineFrame] = useState(null);
 
     // ── PDF 로딩 상태 ──────────────────────────────────────────
     const [isPdfLoading, setIsPdfLoading] = useState(false);
@@ -958,7 +1070,27 @@ export default function GalleryPage() {
                     maintainAspectRatio: false,
                     plugins: {
                         legend: { display: false },
-                        tooltip: { callbacks: { label: (c) => ` 위조 확률: ${c.parsed.y.toFixed(2)}%` } },
+                        tooltip: {
+                            enabled: false,
+                            external: ({ tooltip }) => {
+                                if (!tooltip || tooltip.opacity === 0 || !tooltip.dataPoints?.length) {
+                                    setHoveredInlineFrame(null);
+                                    return;
+                                }
+
+                                const point = tooltip.dataPoints[0];
+                                const frame = analysisData.timeline_chart[point.dataIndex];
+                                const heatmapFrame = displayHeatmapFrames.find(
+                                    (item) => item.frame_idx === frame?.frame_idx
+                                );
+
+                                setHoveredInlineFrame({
+                                    ...buildChartTooltipFrame(frame, heatmapFrame),
+                                    x: tooltip.caretX,
+                                    y: tooltip.caretY,
+                                });
+                            },
+                        },
                     },
                     scales: {
                         x: {
@@ -984,7 +1116,7 @@ export default function GalleryPage() {
             document.body.appendChild(s);
         }
         return () => { if (inlineChartInst.current) inlineChartInst.current.destroy(); };
-    }, [analysisData.timeline_chart]);
+    }, [analysisData.timeline_chart, displayHeatmapFrames]);
 
     // ── PDF 다운로드 (로딩 오버레이 포함) ─────────────────────
     const onDownloadPdf = async () => {
@@ -1277,11 +1409,33 @@ export default function GalleryPage() {
                     <div className="result-grid">
                         <div className="card video-card">
                             <div className="card-head">
-                                <h3>의심스러운 인물 영상</h3>
+                                <h3 title={displayTitle}>{displayTitle}</h3>
                                 <span className="badge warn">주의 필요</span>
                             </div>
                             <div className="video-preview">
-                                <div className="vp-dummy">영상 미리보기</div>
+                                {previewKind === "image" && previewSrc ? (
+                                    <img
+                                        src={previewSrc}
+                                        alt={displayTitle}
+                                        style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }}
+                                    />
+                                ) : videoId ? (
+                                    <iframe
+                                        title={displayTitle}
+                                        src={`https://www.youtube.com/embed/${videoId}`}
+                                        style={{ width: "100%", height: "100%", border: 0 }}
+                                        allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                                        allowFullScreen
+                                    />
+                                ) : previewSrc ? (
+                                    <video
+                                        src={previewSrc}
+                                        controls
+                                        style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }}
+                                    />
+                                ) : (
+                                    <div className="vp-dummy">영상 미리보기</div>
+                                )}
                             </div>
                             <div className={`verdict-banner ${isAiGenerated ? "danger" : "safe"}`}>
                                 <div className="verdict-icon">{isAiGenerated ? "⚠️" : "✅"}</div>
@@ -1348,6 +1502,52 @@ export default function GalleryPage() {
                         </div>
                         <div style={{ position: "relative", width: "100%", height: 220 }}>
                             <canvas ref={inlineChartRef} />
+                            {hoveredInlineFrame && (
+                                <div
+                                    style={{
+                                        position: "absolute",
+                                        left: Math.min(Math.max(hoveredInlineFrame.x + 12, 12), 520),
+                                        top: Math.max(hoveredInlineFrame.y - 220, 8),
+                                        width: 240,
+                                        background: "rgba(15,23,42,0.96)",
+                                        color: "#fff",
+                                        borderRadius: 12,
+                                        overflow: "hidden",
+                                        boxShadow: "0 12px 28px rgba(15,23,42,.28)",
+                                        pointerEvents: "none",
+                                        zIndex: 4,
+                                    }}
+                                >
+                                    {hoveredInlineFrame.image ? (
+                                        <img
+                                            src={hoveredInlineFrame.image}
+                                            alt={`frame-${hoveredInlineFrame.frame_idx}`}
+                                            style={{ width: "100%", height: 176, objectFit: "cover", display: "block" }}
+                                        />
+                                    ) : (
+                                        <div
+                                            style={{
+                                                width: "100%",
+                                                height: 176,
+                                                display: "flex",
+                                                alignItems: "center",
+                                                justifyContent: "center",
+                                                background: "#1e293b",
+                                                color: "#cbd5e1",
+                                                fontSize: 12,
+                                                fontWeight: 700,
+                                            }}
+                                        >
+                                            히트맵 없음
+                                        </div>
+                                    )}
+                                    <div style={{ padding: "10px 12px", display: "grid", gap: 4 }}>
+                                        <div style={{ fontSize: 12, fontWeight: 800 }}>Frame {hoveredInlineFrame.frame_idx}</div>
+                                        <div style={{ fontSize: 12, color: "#fca5a5" }}>위조 확률 {hoveredInlineFrame.fake_prob.toFixed(2)}%</div>
+                                        <div style={{ fontSize: 12, color: "#93c5fd" }}>실제 확률 {hoveredInlineFrame.real_prob.toFixed(2)}%</div>
+                                    </div>
+                                </div>
+                            )}
                         </div>
                         <div style={{ display: "grid", gridTemplateColumns: "repeat(3,1fr)", gap: 8, marginTop: 16 }}>
                             <div style={{ background: "#f9fafb", borderRadius: 10, padding: 12, textAlign: "center" }}>
