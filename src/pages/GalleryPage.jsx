@@ -244,6 +244,29 @@ function sanitizePdfFileName(name) {
         .trim();
 }
 
+function waitForImagesToLoad(root) {
+    if (!root) return Promise.resolve();
+
+    const images = Array.from(root.querySelectorAll("img"));
+    const pendingImages = images.filter((image) => !image.complete);
+
+    return Promise.all(
+        pendingImages.map(
+            (image) =>
+                new Promise((resolve) => {
+                    const done = () => {
+                        image.removeEventListener("load", done);
+                        image.removeEventListener("error", done);
+                        resolve();
+                    };
+
+                    image.addEventListener("load", done, { once: true });
+                    image.addEventListener("error", done, { once: true });
+                })
+        )
+    );
+}
+
 function buildPdfComparisonNotes(analysisData, displayTitle, reportPayload, forensicOpinion) {
     const notes = [];
     const pdfTitle = displayTitle || analysisData.filename || "-";
@@ -1298,6 +1321,7 @@ export default function GalleryPage() {
             }
 
             await document.fonts.ready;
+            await waitForImagesToLoad(target);
 
             const pages = target.querySelectorAll(".pdf-page");
             if (!pages.length) {

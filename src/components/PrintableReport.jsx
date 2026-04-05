@@ -510,7 +510,7 @@ export default function PrintableReport({
         displayHeatmapFrames
     );
     const heatmapChunks = chunkArray(normalizedHeatmaps, 6);
-    const finalOpinion = extractFinalOpinionSafe(forensicOpinion);
+    const finalOpinion = extractFinalOpinionSafe(forensicOpinion) || " ";
     const forensicFrameFindings = parseForensicFrameFindingsSafe(forensicOpinion);
     const technicalRiskAssessments = parseTechnicalRiskAssessmentsSafe(forensicOpinion);
     const totalPdfPages = 2 + heatmapChunks.length + (comparisonNotes.length > 0 ? 1 : 0);
