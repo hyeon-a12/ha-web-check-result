@@ -251,6 +251,50 @@ function buildChartTooltipFrame(frame, heatmapFrame) {
     };
 }
 
+function AdaptiveHeatmapImage({
+    src,
+    alt,
+    defaultAspectRatio = "9 / 16",
+    maxHeight = null,
+    minHeight = null,
+    borderRadius = 0,
+    background = "#0f172a",
+}) {
+    const [aspectRatio, setAspectRatio] = useState(defaultAspectRatio);
+
+    return (
+        <div
+            style={{
+                width: "100%",
+                aspectRatio,
+                maxHeight: maxHeight ?? undefined,
+                minHeight: minHeight ?? undefined,
+                background,
+                borderRadius,
+                overflow: "hidden",
+            }}
+        >
+            <img
+                src={src}
+                alt={alt}
+                onLoad={(event) => {
+                    const { naturalWidth, naturalHeight } = event.currentTarget;
+                    if (naturalWidth > 0 && naturalHeight > 0) {
+                        setAspectRatio(`${naturalWidth} / ${naturalHeight}`);
+                    }
+                }}
+                style={{
+                    width: "100%",
+                    height: "100%",
+                    objectFit: "contain",
+                    display: "block",
+                    background,
+                }}
+            />
+        </div>
+    );
+}
+
 // ─────────────────────────────────────────────────────────────
 // 재사용 히트맵 갤러리
 // ─────────────────────────────────────────────────────────────
@@ -375,14 +419,11 @@ function HeatmapGallerySection({
                     border-radius:14px;
                     overflow:hidden;
                     background:#0f172a;
-                    aspect-ratio:1/1;
                     border:1px solid #1e293b;
                     box-shadow:0 4px 14px rgba(15,23,42,.12);
                 }
                 .heatmap-image {
                     width:100%;
-                    height:100%;
-                    object-fit:cover;
                     display:block;
                 }
                 .heatmap-placeholder {
@@ -496,8 +537,6 @@ function HeatmapGallerySection({
                 }
                 .heatmap-preview-image {
                     width:100%;
-                    height:100%;
-                    object-fit:cover;
                     display:block;
                 }
                 .heatmap-preview-placeholder {
@@ -625,7 +664,12 @@ function HeatmapGallerySection({
                             {featured.map((frame) => (
                                 <div className="heatmap-cell" key={`featured-${frame.frame_idx}-${frame.id}`}>
                                     {frame.image ? (
-                                        <img src={frame.image} alt={`heatmap-${frame.id}`} className="heatmap-image" />
+                                        <AdaptiveHeatmapImage
+                                            src={frame.image}
+                                            alt={`heatmap-${frame.id}`}
+                                            minHeight={220}
+                                            borderRadius={0}
+                                        />
                                     ) : (
                                         <div className="heatmap-placeholder">
                                             <div className="heatmap-placeholder-inner">
@@ -676,7 +720,13 @@ function HeatmapGallerySection({
                             <div className="heatmap-gallery-preview">
                                 <div className="heatmap-preview-card">
                                     {selectedFrame.image ? (
-                                        <img src={selectedFrame.image} alt={`heatmap-preview-${selectedFrame.id}`} className="heatmap-preview-image" />
+                                        <AdaptiveHeatmapImage
+                                            src={selectedFrame.image}
+                                            alt={`heatmap-preview-${selectedFrame.id}`}
+                                            minHeight={170}
+                                            maxHeight={360}
+                                            borderRadius={0}
+                                        />
                                     ) : (
                                         <div className="heatmap-preview-placeholder">
                                             <div className="heatmap-placeholder-inner">
@@ -907,10 +957,11 @@ function FrameGraphPage({ onBack, analysisData }) {
                                 }}
                             >
                                 {hoveredFrame.image ? (
-                                    <img
+                                    <AdaptiveHeatmapImage
                                         src={hoveredFrame.image}
                                         alt={`frame-${hoveredFrame.frame_idx}`}
-                                        style={{ width: "100%", height: 192, objectFit: "cover", display: "block" }}
+                                        minHeight={192}
+                                        maxHeight={320}
                                     />
                                 ) : (
                                     <div
@@ -1339,6 +1390,46 @@ export default function GalleryPage() {
                         <div className="rt-left">
                             <h2 className="rt-title">분석 결과 리포트</h2>
                             <p className="rt-sub">업로드한 영상의 위변조/AI 생성 의심 구간을 종합 분석했습니다.</p>
+                            {(videoId || previewSrc) && (
+                                <div
+                                    style={{
+                                        marginTop: 14,
+                                        borderRadius: 16,
+                                        overflow: "hidden",
+                                        border: "1px solid #e5e7eb",
+                                        background: "#0f172a",
+                                        boxShadow: "0 8px 24px rgba(15,23,42,.12)",
+                                        maxWidth: 420,
+                                    }}
+                                >
+                                    <div style={{ padding: "10px 14px", background: "rgba(255,255,255,0.04)", color: "#fff", fontSize: 13, fontWeight: 700 }}>
+                                        {displayTitle}
+                                    </div>
+                                    <div style={{ width: "100%", aspectRatio: "9 / 16", background: "#000" }}>
+                                        {videoId ? (
+                                            <iframe
+                                                title={`${displayTitle}-header-player`}
+                                                src={`https://www.youtube.com/embed/${videoId}`}
+                                                style={{ width: "100%", height: "100%", border: 0, display: "block" }}
+                                                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                                                allowFullScreen
+                                            />
+                                        ) : previewKind === "image" ? (
+                                            <img
+                                                src={previewSrc}
+                                                alt={displayTitle}
+                                                style={{ width: "100%", height: "100%", objectFit: "contain", display: "block", background: "#000" }}
+                                            />
+                                        ) : (
+                                            <video
+                                                src={previewSrc}
+                                                controls
+                                                style={{ width: "100%", height: "100%", objectFit: "contain", display: "block", background: "#000" }}
+                                            />
+                                        )}
+                                    </div>
+                                </div>
+                            )}
                         </div>
 
                         <div className="rt-right">
@@ -1519,10 +1610,11 @@ export default function GalleryPage() {
                                     }}
                                 >
                                     {hoveredInlineFrame.image ? (
-                                        <img
+                                        <AdaptiveHeatmapImage
                                             src={hoveredInlineFrame.image}
                                             alt={`frame-${hoveredInlineFrame.frame_idx}`}
-                                            style={{ width: "100%", height: 176, objectFit: "cover", display: "block" }}
+                                            minHeight={176}
+                                            maxHeight={300}
                                         />
                                     ) : (
                                         <div
