@@ -251,6 +251,20 @@ function buildChartTooltipFrame(frame, heatmapFrame) {
     };
 }
 
+function getTooltipPosition(x, y, width, height, boundsWidth, boundsHeight) {
+    const gap = 12;
+    const preferRight = x + gap + width <= boundsWidth - 8;
+    const left = preferRight
+        ? x + gap
+        : Math.max(8, x - width - gap);
+    const top = Math.min(
+        Math.max(8, y - height / 2),
+        Math.max(8, boundsHeight - height - 8)
+    );
+
+    return { left, top };
+}
+
 function AdaptiveHeatmapImage({
     src,
     alt,
@@ -791,6 +805,7 @@ function FrameGraphPage({ onBack, analysisData }) {
     const chartInstance = useRef(null);
     const { timeline_chart } = analysisData;
     const [hoveredFrame, setHoveredFrame] = useState(null);
+    const frameTooltipSize = { width: 260, height: 252 };
 
     const displayHeatmapFrames = useMemo(
         () => normalizeHeatmapFrames(analysisData),
@@ -942,19 +957,32 @@ function FrameGraphPage({ onBack, analysisData }) {
                         <canvas ref={chartRef} />
                         {hoveredFrame && (
                             <div
-                                style={{
-                                    position: "absolute",
-                                    left: Math.min(Math.max(hoveredFrame.x + 12, 12), 700),
-                                    top: Math.max(hoveredFrame.y - 240, 8),
-                                    width: 260,
-                                    background: "rgba(15,23,42,0.96)",
-                                    color: "#fff",
-                                    borderRadius: 12,
-                                    overflow: "hidden",
-                                    boxShadow: "0 12px 28px rgba(15,23,42,.28)",
-                                    pointerEvents: "none",
-                                    zIndex: 4,
-                                }}
+                                    {...(() => {
+                                        const boundsWidth = chartRef.current?.parentElement?.clientWidth ?? 1100;
+                                        const pos = getTooltipPosition(
+                                            hoveredFrame.x,
+                                            hoveredFrame.y,
+                                            frameTooltipSize.width,
+                                            frameTooltipSize.height,
+                                            boundsWidth,
+                                            280
+                                        );
+                                    return {
+                                        style: {
+                                            position: "absolute",
+                                            left: pos.left,
+                                            top: pos.top,
+                                            width: frameTooltipSize.width,
+                                            background: "rgba(15,23,42,0.96)",
+                                            color: "#fff",
+                                            borderRadius: 12,
+                                            overflow: "hidden",
+                                            boxShadow: "0 12px 28px rgba(15,23,42,.28)",
+                                            pointerEvents: "none",
+                                            zIndex: 4,
+                                        },
+                                    };
+                                })()}
                             >
                                 {hoveredFrame.image ? (
                                     <AdaptiveHeatmapImage
@@ -1039,6 +1067,7 @@ export default function GalleryPage() {
     const [menuOpen, setMenuOpen] = useState(false);
     const [forensicOpinion, setForensicOpinion] = useState("");
     const [hoveredInlineFrame, setHoveredInlineFrame] = useState(null);
+    const inlineTooltipSize = { width: 240, height: 236 };
 
     // ── PDF 로딩 상태 ──────────────────────────────────────────
     const [isPdfLoading, setIsPdfLoading] = useState(false);
@@ -1548,19 +1577,32 @@ export default function GalleryPage() {
                             <canvas ref={inlineChartRef} />
                             {hoveredInlineFrame && (
                                 <div
-                                    style={{
-                                        position: "absolute",
-                                        left: Math.min(Math.max(hoveredInlineFrame.x + 12, 12), 520),
-                                        top: Math.max(hoveredInlineFrame.y - 220, 8),
-                                        width: 240,
-                                        background: "rgba(15,23,42,0.96)",
-                                        color: "#fff",
-                                        borderRadius: 12,
-                                        overflow: "hidden",
-                                        boxShadow: "0 12px 28px rgba(15,23,42,.28)",
-                                        pointerEvents: "none",
-                                        zIndex: 4,
-                                    }}
+                                    {...(() => {
+                                        const boundsWidth = inlineChartRef.current?.parentElement?.clientWidth ?? 900;
+                                        const pos = getTooltipPosition(
+                                            hoveredInlineFrame.x,
+                                            hoveredInlineFrame.y,
+                                            inlineTooltipSize.width,
+                                            inlineTooltipSize.height,
+                                            boundsWidth,
+                                            220
+                                        );
+                                        return {
+                                            style: {
+                                                position: "absolute",
+                                                left: pos.left,
+                                                top: pos.top,
+                                                width: inlineTooltipSize.width,
+                                                background: "rgba(15,23,42,0.96)",
+                                                color: "#fff",
+                                                borderRadius: 12,
+                                                overflow: "hidden",
+                                                boxShadow: "0 12px 28px rgba(15,23,42,.28)",
+                                                pointerEvents: "none",
+                                                zIndex: 4,
+                                            },
+                                        };
+                                    })()}
                                 >
                                     {hoveredInlineFrame.image ? (
                                         <AdaptiveHeatmapImage
