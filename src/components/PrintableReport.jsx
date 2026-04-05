@@ -213,6 +213,103 @@ function extractFinalOpinion(markdownText) {
     return collected.join("\n").trim();
 }
 
+function extractSectionLines(markdownText, headingText) {
+    if (!markdownText) return [];
+
+    const headingPattern = /^###\s+/;
+    const lines = markdownText.split(/\r?\n/);
+    const startIndex = lines.findIndex((line) => line.trim() === headingText);
+
+    if (startIndex === -1) {
+        return [];
+    }
+
+    const collected = [];
+    for (let i = startIndex + 1; i < lines.length; i += 1) {
+        const trimmed = lines[i].trim();
+        if (headingPattern.test(trimmed)) break;
+        if (trimmed === "---") continue;
+        collected.push(lines[i]);
+    }
+
+    return collected;
+}
+
+function parseKeyValueText(line, label) {
+    const cleaned = line.replace(/\*\*/g, "").trim();
+    const prefix = `${label}:`;
+    const index = cleaned.indexOf(prefix);
+    return index >= 0 ? cleaned.slice(index + prefix.length).trim() : "";
+}
+
+function parseForensicFrameFindings(markdownText) {
+    const lines = extractSectionLines(markdownText, "### 2. 주요 조작 징후 프레임 분석 (이미지 근거 포함)");
+    const findings = [];
+    let current = null;
+
+    lines.forEach((rawLine) => {
+        const line = rawLine.trim();
+        if (!line) return;
+
+        const frameMatch = line.match(/(\d+)번째 프레임\s+\(첨부 이미지:\s*([^)]+)\)/);
+        if (frameMatch) {
+            current = {
+                frameIndex: Number(frameMatch[1]),
+                imageName: frameMatch[2].trim(),
+                probabilityText: "",
+                analysisText: "",
+            };
+            findings.push(current);
+            return;
+        }
+
+        if (!current) return;
+
+        if (line.includes("조작 확률")) {
+            current.probabilityText = parseKeyValueText(line, "조작 확률");
+            return;
+        }
+
+        if (line.includes("분석 내용")) {
+            current.analysisText = parseKeyValueText(line, "분석 내용");
+            return;
+        }
+
+        current.analysisText = current.analysisText
+            ? `${current.analysisText} ${line.replace(/\*\*/g, "").trim()}`
+            : line.replace(/\*\*/g, "").trim();
+    });
+
+    return findings;
+}
+
+function parseTechnicalRiskAssessments(markdownText) {
+    const lines = extractSectionLines(markdownText, "### 3. 기술적 위험도 평가");
+    const assessments = [];
+    let current = null;
+
+    lines.forEach((rawLine) => {
+        const line = rawLine.trim();
+        if (!line) return;
+
+        if (line.startsWith("*   **") && line.includes(":**")) {
+            const title = line.replace(/^\*\s+\*\*/, "").replace(/:\*\*$/, "").trim();
+            current = { title, description: "" };
+            assessments.push(current);
+            return;
+        }
+
+        if (!current) return;
+
+        const cleaned = line.replace(/\*\*/g, "").trim();
+        current.description = current.description
+            ? `${current.description} ${cleaned}`
+            : cleaned;
+    });
+
+    return assessments;
+}
+
 function buildDisplayHeatmapFrames(analysisData, externalHeatmaps = []) {
     const timeline = analysisData.timeline_chart ?? [];
     const rawHeatmaps =
@@ -290,6 +387,8 @@ export default function PrintableReport({
     );
     const heatmapChunks = chunkArray(normalizedHeatmaps, 6);
     const finalOpinion = extractFinalOpinion(forensicOpinion);
+    const forensicFrameFindings = parseForensicFrameFindings(forensicOpinion);
+    const technicalRiskAssessments = parseTechnicalRiskAssessments(forensicOpinion);
     const totalPdfPages = 2 + heatmapChunks.length + (comparisonNotes.length > 0 ? 1 : 0);
 
     const S = {
@@ -463,6 +562,53 @@ export default function PrintableReport({
             borderRadius: 4,
             padding: "3px 6px",
             background: "#fff7ed",
+        },
+        findingTable: {
+            width: "100%",
+            borderCollapse: "collapse",
+            fontSize: 10,
+            marginTop: 10,
+        },
+        findingThumb: {
+            width: 84,
+            height: 120,
+            objectFit: "contain",
+            display: "block",
+            background: "#0f172a",
+            borderRadius: 6,
+            border: "1px solid #e2e8f0",
+        },
+        findingEmpty: {
+            width: 84,
+            height: 120,
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            background: "#f8fafc",
+            color: "#94a3b8",
+            borderRadius: 6,
+            border: "1px solid #e2e8f0",
+            fontSize: 9,
+            fontWeight: 700,
+        },
+        riskBox: {
+            border: "1px solid #e2e8f0",
+            borderRadius: 8,
+            padding: "10px 12px",
+            background: "#fff",
+            marginTop: 10,
+        },
+        riskBoxTitle: {
+            fontSize: 11,
+            fontWeight: 800,
+            color: "#1e293b",
+            marginBottom: 4,
+        },
+        riskBoxText: {
+            fontSize: 10,
+            lineHeight: 1.7,
+            color: "#475569",
+            whiteSpace: "pre-wrap",
         },
 
         hmGrid: {
@@ -1059,6 +1205,13 @@ export default function PrintableReport({
                             ))}
                         </tbody>
                     </table>
+
+                    {technicalRiskAssessments.map((item, index) => (
+                        <div key={`risk-${index}`} style={S.riskBox}>
+                            <div style={S.riskBoxTitle}>{item.title}</div>
+                            <div style={S.riskBoxText}>{item.description}</div>
+                        </div>
+                    ))}
                 </div>
 
                 <div style={{ marginBottom: 14 }}>
@@ -1144,6 +1297,51 @@ export default function PrintableReport({
                             </div>
                         ))}
                     </div>
+
+                    {forensicFrameFindings.length > 0 && (
+                        <table style={S.findingTable}>
+                            <thead>
+                                <tr>
+                                    <th style={{ ...S.th, width: "96px" }}>이미지</th>
+                                    <th style={{ ...S.th, width: "120px" }}>확률</th>
+                                    <th style={S.th}>분석 내용</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {forensicFrameFindings.map((finding, index) => {
+                                    const matchedFrame =
+                                        normalizedHeatmaps.find((frame) => frame.frame_idx === finding.frameIndex) ||
+                                        normalizedHeatmaps.find((frame) => frame.image?.includes?.(finding.imageName));
+
+                                    return (
+                                        <tr key={`finding-${index}`} style={{ background: index % 2 === 0 ? "#fff" : "#f8fafc" }}>
+                                            <td style={S.td}>
+                                                {matchedFrame?.image ? (
+                                                    <img
+                                                        src={matchedFrame.image}
+                                                        alt={`finding-${finding.frameIndex}`}
+                                                        style={S.findingThumb}
+                                                        crossOrigin="anonymous"
+                                                    />
+                                                ) : (
+                                                    <div style={S.findingEmpty}>이미지 없음</div>
+                                                )}
+                                            </td>
+                                            <td style={{ ...S.td, fontSize: 10, fontWeight: 800, color: "#dc2626" }}>
+                                                Frame {finding.frameIndex}
+                                                <div style={{ color: "#475569", marginTop: 4 }}>
+                                                    {finding.probabilityText || "-"}
+                                                </div>
+                                            </td>
+                                            <td style={{ ...S.td, fontSize: 10, lineHeight: 1.7 }}>
+                                                {finding.analysisText || "-"}
+                                            </td>
+                                        </tr>
+                                    );
+                                })}
+                            </tbody>
+                        </table>
+                    )}
                 </div>
 
                 <div style={{ marginBottom: 14 }}>
