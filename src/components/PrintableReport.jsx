@@ -249,6 +249,7 @@ export default function PrintableReport({
     reportDate,
     displayHeatmapFrames = [],
     forensicOpinion = "",
+    comparisonNotes = [],
 }) {
     const isFake = analysisData.final_prediction === "FAKE";
     const verdictText = isFake ? "AI 생성 의심" : "정상 영상";
@@ -289,7 +290,7 @@ export default function PrintableReport({
     );
     const heatmapChunks = chunkArray(normalizedHeatmaps, 6);
     const finalOpinion = extractFinalOpinion(forensicOpinion);
-    const totalPdfPages = 2 + heatmapChunks.length;
+    const totalPdfPages = 2 + heatmapChunks.length + (comparisonNotes.length > 0 ? 1 : 0);
 
     const S = {
         page: {
@@ -501,6 +502,15 @@ export default function PrintableReport({
             fontSize: 10,
             lineHeight: 1.7,
             color: "#374151",
+        },
+        compareList: {
+            margin: 0,
+            paddingLeft: 18,
+            display: "grid",
+            gap: 8,
+            color: "#334155",
+            fontSize: 11,
+            lineHeight: 1.7,
         },
         footer: {
             borderTop: "1px solid #e2e8f0",
@@ -1298,6 +1308,52 @@ export default function PrintableReport({
                     </div>
                 </div>
             ))}
+
+            {comparisonNotes.length > 0 && (
+                <div style={{ ...S.page, marginTop: 0 }} className="pdf-page">
+                    <div style={S.brandBar}>
+                        <div style={S.brandLeft}>
+                            <div style={{ display: "flex", alignItems: "baseline", gap: 10 }}>
+                                <span style={S.brandTitle}>DeepFake Analyzer</span>
+                                <span style={{ fontSize: 10, color: "#94a3b8" }}>
+                                    JSON Comparison Notes
+                                </span>
+                            </div>
+                            <span style={S.brandSub}>PDF와 JSON 결과 대조 메모</span>
+                        </div>
+                        <div style={S.brandRight}>
+                            <div style={S.brandModel}>{analysisData.analysis_id}</div>
+                            <div style={S.brandDate}>{reportDate}</div>
+                        </div>
+                    </div>
+
+                    <div style={S.sectionTitle}>
+                        대조 메모 <span style={S.sectionEn}>Comparison Notes</span>
+                    </div>
+
+                    <div
+                        style={{
+                            border: "1px solid #e2e8f0",
+                            borderRadius: 8,
+                            padding: "16px 18px",
+                            background: "#fff",
+                        }}
+                    >
+                        <ul style={S.compareList}>
+                            {comparisonNotes.map((note, index) => (
+                                <li key={`compare-note-${index}`}>{note}</li>
+                            ))}
+                        </ul>
+                    </div>
+
+                    <div style={S.footer}>
+                        <span>PDF/JSON 대조 메모</span>
+                        <span>
+                            생성일시: {reportDate} · 분석 ID: {analysisData.analysis_id} · {totalPdfPages} / {totalPdfPages} Page
+                        </span>
+                    </div>
+                </div>
+            )}
 
         </div>
     );

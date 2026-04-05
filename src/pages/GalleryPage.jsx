@@ -5,7 +5,7 @@ import jsPDF from "jspdf";
 import html2canvas from "html2canvas";
 import PrintableReport from "../components/PrintableReport";
 import LoadingOverlay from "../components/LoadingOverlay";
-import { fetchAnalyzeReport, resolveGalleryImageUrl } from "../services/api";
+import { fetchAnalyzeReport, fetchNgrokImage, resolveGalleryImageUrl } from "../services/api";
 
 // ─────────────────────────────────────────────────────────────
 // 임시 JSON 데이터 (실제 서비스에서는 API 응답으로 교체)
@@ -234,6 +234,40 @@ function buildReportPayload(analysisData) {
         decisive_frames: analysisData.decisive_frames,
         other_frames: analysisData.other_frames,
     };
+}
+
+function sanitizePdfFileName(name) {
+    return (name || "분석결과")
+        .replace(/[<>:"/\\|?*]/g, "_")
+        .replace(/\s+/g, " ")
+        .trim();
+}
+
+function buildPdfComparisonNotes(analysisData, displayTitle, reportPayload, forensicOpinion) {
+    const notes = [];
+    const pdfTitle = displayTitle || analysisData.filename || "-";
+    const jsonFileName = analysisData.filename || "-";
+    const decisiveCount = Array.isArray(analysisData.decisive_frames) ? analysisData.decisive_frames.length : 0;
+    const otherCount = Array.isArray(analysisData.other_frames) ? analysisData.other_frames.length : 0;
+    const detailCount = Array.isArray(analysisData.detailed_analysis) ? analysisData.detailed_analysis.length : 0;
+
+    notes.push(`PDF 표시 제목: ${pdfTitle}`);
+    notes.push(`JSON filename: ${jsonFileName}`);
+    if (pdfTitle !== jsonFileName) {
+        notes.push(`표시 제목과 JSON filename이 다릅니다.`);
+    }
+    notes.push(`JSON final_prediction: ${analysisData.final_prediction}`);
+    notes.push(`JSON overall_confidence_percent: ${Number(analysisData.overall_confidence_percent ?? 0).toFixed(2)}%`);
+    if (analysisData.process_time_seconds) {
+        notes.push(`JSON process_time_seconds: ${analysisData.process_time_seconds}s`);
+    }
+    notes.push(`JSON detailed_analysis 항목 수: ${detailCount}`);
+    notes.push(`JSON decisive_frames 수: ${decisiveCount}`);
+    notes.push(`JSON other_frames 수: ${otherCount}`);
+    notes.push(`REPORT payload filename: ${reportPayload?.filename || "-"}`);
+    notes.push(`REPORT forensic_opinion 존재 여부: ${forensicOpinion ? "있음" : "없음"}`);
+
+    return notes;
 }
 
 function buildChartTooltipFrame(frame, heatmapFrame) {
@@ -1066,6 +1100,8 @@ export default function GalleryPage() {
     const [showFrameGraph, setShowFrameGraph] = useState(false);
     const [menuOpen, setMenuOpen] = useState(false);
     const [forensicOpinion, setForensicOpinion] = useState("");
+    const [pdfHeatmapFrames, setPdfHeatmapFrames] = useState([]);
+    const [pdfComparisonNotes, setPdfComparisonNotes] = useState([]);
     const [hoveredInlineFrame, setHoveredInlineFrame] = useState(null);
     const inlineTooltipSize = { width: 240, height: 236 };
 
@@ -1099,11 +1135,26 @@ export default function GalleryPage() {
     }, []);
 
     // 파일명 (로딩 오버레이에 표시)
-    const pdfFileName = `${reportDate.replace(/[.: ]/g, "_")}_분석결과.pdf`;
+    const pdfFileName = `${sanitizePdfFileName(displayTitle || analysisData.filename)}_${reportDate.replace(/[.: ]/g, "_")}.pdf`;
+    const pdfAnalysisData = useMemo(
+        () => ({
+            ...analysisData,
+            filename: displayTitle || analysisData.filename,
+        }),
+        [analysisData, displayTitle]
+    );
 
     useEffect(() => {
         setForensicOpinion("");
     }, [analysisData.analysis_id]);
+
+    useEffect(() => () => {
+        pdfHeatmapFrames.forEach((frame) => {
+            if (frame?.image?.startsWith?.("blob:")) {
+                URL.revokeObjectURL(frame.image);
+            }
+        });
+    }, [pdfHeatmapFrames]);
 
     useEffect(() => {
         const h = (e) => {
@@ -1205,13 +1256,35 @@ export default function GalleryPage() {
         const simId = simulatePdfProgress(setPdfProgress, 9000);
 
         try {
+            const reportPayload = buildReportPayload(analysisData);
             try {
-                const reportResponse = await fetchAnalyzeReport(buildReportPayload(analysisData));
-                setForensicOpinion(reportResponse?.forensic_opinion || "");
+                const reportResponse = await fetchAnalyzeReport(reportPayload);
+                const nextForensicOpinion = reportResponse?.forensic_opinion || "";
+                setForensicOpinion(nextForensicOpinion);
+                setPdfComparisonNotes(
+                    buildPdfComparisonNotes(analysisData, displayTitle, reportPayload, nextForensicOpinion)
+                );
+                const nextPdfHeatmaps = await Promise.all(
+                    displayHeatmapFrames.map(async (frame) => {
+                        if (!frame?.image) return frame;
+                        try {
+                            const fetchedImage = await fetchNgrokImage(frame.image);
+                            return { ...frame, image: fetchedImage };
+                        } catch (imageError) {
+                            console.error(imageError);
+                            return frame;
+                        }
+                    })
+                );
+                setPdfHeatmapFrames(nextPdfHeatmaps);
                 await new Promise((resolve) => setTimeout(resolve, 0));
             } catch (reportError) {
                 console.error(reportError);
                 setForensicOpinion("");
+                setPdfComparisonNotes(
+                    buildPdfComparisonNotes(analysisData, displayTitle, reportPayload, "")
+                );
+                setPdfHeatmapFrames(displayHeatmapFrames);
             }
 
             const target = reportCaptureRef.current;
@@ -1729,12 +1802,13 @@ export default function GalleryPage() {
             <div style={{ position: "fixed", left: "-100000px", top: 0, zIndex: -1, pointerEvents: "none" }}>
                 <div ref={reportCaptureRef}>
                     <PrintableReport
-                        analysisData={analysisData}
+                        analysisData={pdfAnalysisData}
                         inlineFrameStats={inlineFrameStats}
                         publicItems={publicItems}
                         reportDate={reportDate}
-                        displayHeatmapFrames={displayHeatmapFrames}
+                        displayHeatmapFrames={pdfHeatmapFrames.length > 0 ? pdfHeatmapFrames : displayHeatmapFrames}
                         forensicOpinion={forensicOpinion}
+                        comparisonNotes={pdfComparisonNotes}
                     />
                 </div>
             </div>
