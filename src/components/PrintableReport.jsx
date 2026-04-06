@@ -2,6 +2,7 @@
 // 영상 위변조 분석 보고서 PDF 컴포넌트
 
 function PdfLineChart({ data }) {
+    // PDF 렌더링 환경(고정 캔버스)에 맞춰 SVG 좌표를 직접 계산한다.
     const width = 660;
     const height = 160;
     const padL = 36, padR = 16, padT = 12, padB = 28;
@@ -113,6 +114,7 @@ function PdfLineChart({ data }) {
 }
 
 function MiniBar({ value, max = 100, color = "#1d4ed8", bgColor = "#e2e8f0" }) {
+    // 막대 길이는 max 기준 비율로 계산하고, 100%를 넘지 않게 clamp 처리한다.
     const pct = Math.min((value / max) * 100, 100);
 
     return (
@@ -151,6 +153,7 @@ function MiniBar({ value, max = 100, color = "#1d4ed8", bgColor = "#e2e8f0" }) {
 }
 
 function RiskBadge({ level }) {
+    // 한글/영문 위험도 입력을 모두 표준 키(HIGH/MEDIUM/LOW)로 정규화한다.
     const map = {
         HIGH: { bg: "#fef2f2", border: "#fecaca", color: "#dc2626", label: "높음" },
         MEDIUM: { bg: "#fffbeb", border: "#fde68a", color: "#d97706", label: "중간" },
@@ -184,6 +187,7 @@ function RiskBadge({ level }) {
 }
 
 function chunkArray(arr, size) {
+    // 긴 표/히트맵 목록을 페이지 단위로 잘라 PDF 레이아웃을 안정화한다.
     const result = [];
     for (let i = 0; i < arr.length; i += size) {
         result.push(arr.slice(i, i + size));
@@ -192,6 +196,7 @@ function chunkArray(arr, size) {
 }
 
 function extractFinalOpinion(markdownText) {
+    // LLM 응답에서 "4. 최종 감정 의견" 섹션만 발췌해 본문 요약 카드에 사용한다.
     if (!markdownText) return "";
 
     const headingPattern = /^###\s+/;
@@ -214,6 +219,7 @@ function extractFinalOpinion(markdownText) {
 }
 
 function extractSectionLines(markdownText, headingText) {
+    // 지정한 heading 아래 본문만 수집하고 다음 heading에서 중단한다.
     if (!markdownText) return [];
 
     const headingPattern = /^###\s+/;
@@ -236,6 +242,7 @@ function extractSectionLines(markdownText, headingText) {
 }
 
 function parseKeyValueText(line, label) {
+    // "라벨: 값" 형태에서 값 부분만 잘라내는 공용 파서.
     const cleaned = line.replace(/\*\*/g, "").trim();
     const prefix = `${label}:`;
     const index = cleaned.indexOf(prefix);
@@ -243,6 +250,8 @@ function parseKeyValueText(line, label) {
 }
 
 function parseForensicFrameFindings(markdownText) {
+    // "2. 주요 조작 징후..." 섹션을 줄 단위로 읽어
+    // 프레임 번호/첨부 이미지/확률/분석 텍스트를 표용 구조로 변환한다.
     const lines = extractSectionLines(markdownText, "### 2. 주요 조작 징후 프레임 분석 (이미지 근거 포함)");
     const findings = [];
     let current = null;
@@ -284,6 +293,7 @@ function parseForensicFrameFindings(markdownText) {
 }
 
 function parseTechnicalRiskAssessments(markdownText) {
+    // "3. 기술적 위험도 평가" 섹션의 불릿을 카드형 데이터로 추출한다.
     const lines = extractSectionLines(markdownText, "### 3. 기술적 위험도 평가");
     const assessments = [];
     let current = null;
@@ -311,10 +321,12 @@ function parseTechnicalRiskAssessments(markdownText) {
 }
 
 function normalizeMarkdownLineSafe(line) {
+    // NBSP(\u00a0) 같은 특수 공백을 일반 공백으로 통일해 정규식 매칭 실패를 줄인다.
     return line.replace(/\u00a0/g, " ").trim();
 }
 
 function extractSectionLinesSafe(markdownText, sectionNumber) {
+    // 모델 응답 포맷이 조금 달라도 section 번호 기반으로 최대한 복원한다.
     if (!markdownText) return [];
 
     const headingPattern = /^###\s+\d+\s*\./;
@@ -338,6 +350,7 @@ function extractSectionLinesSafe(markdownText, sectionNumber) {
 }
 
 function extractFinalOpinionSafe(markdownText) {
+    // 우선 섹션 4를 정석대로 파싱하고, 실패하면 heading 제거 후 전체 텍스트를 fallback으로 사용.
     const extracted = extractSectionLinesSafe(markdownText, 4)
         .map((line) => line.replace(/\*\*(.+?)\*\*/g, "$1").trimEnd())
         .filter((line) => line.trim())
@@ -356,6 +369,7 @@ function extractFinalOpinionSafe(markdownText) {
 }
 
 function parseForensicFrameFindingsSafe(markdownText) {
+    // 다양한 마크다운 표기(굵게/하이픈/콜론 유무)를 허용하는 안전 파서.
     const lines = extractSectionLinesSafe(markdownText, 2);
     const findings = [];
     let current = null;
@@ -363,6 +377,18 @@ function parseForensicFrameFindingsSafe(markdownText) {
     lines.forEach((rawLine) => {
         const line = rawLine.trim();
         if (!line) return;
+
+        const rankFrameMatch = line.match(/^\*\s+\*\*프레임\s+(\d+)\s*\(Rank\s+\d+\)\s*:\*\*/i);
+        if (rankFrameMatch) {
+            current = {
+                frameIndex: Number(rankFrameMatch[1]),
+                imageName: "",
+                probabilityText: "",
+                analysisText: "",
+            };
+            findings.push(current);
+            return;
+        }
 
         const frameMatch = line.match(/(\d+).*?\((?:.*?:\s*)?([^)]+\.(?:jpg|jpeg|png|webp))\)/i);
         if (frameMatch) {
@@ -377,6 +403,11 @@ function parseForensicFrameFindingsSafe(markdownText) {
         }
 
         if (!current) return;
+
+        const frameIndexMatch = line.match(/`frame_index`\s*:\s*(\d+)/i);
+        if (frameIndexMatch) {
+            current.frameIndex = Number(frameIndexMatch[1]);
+        }
 
         const probabilityMatch = line.replace(/\*\*/g, "").match(/(\d+(?:\.\d+)?)%/);
         if (probabilityMatch) {
@@ -407,6 +438,7 @@ function parseForensicFrameFindingsSafe(markdownText) {
 }
 
 function parseTechnicalRiskAssessmentsSafe(markdownText) {
+    // 제목 패턴이 흔들려도 "위험도 평가" 섹션 텍스트를 유연하게 파싱한다.
     const lines = extractSectionLinesSafe(markdownText, 3);
     const assessments = [];
     let current = null;
@@ -434,6 +466,8 @@ function parseTechnicalRiskAssessmentsSafe(markdownText) {
 }
 
 function buildDisplayHeatmapFrames(analysisData, externalHeatmaps = []) {
+    // timeline_chart를 기준 축으로 잡고 heatmap 메타를 병합해
+    // 화면/표에서 바로 쓰기 좋은 프레임 객체 배열로 정규화한다.
     const timeline = analysisData.timeline_chart ?? [];
     const rawHeatmaps =
         externalHeatmaps.length > 0
@@ -472,6 +506,8 @@ export default function PrintableReport({
     forensicOpinion = "",
     comparisonNotes = [],
 }) {
+    // 1) 원본 분석 데이터에서 PDF 표시용 파생값 계산
+    // 2) 각 섹션(표/그래프/히트맵)에서 재사용할 공통 데이터 생성
     const isFake = analysisData.final_prediction === "FAKE";
     const verdictText = isFake ? "AI 생성 의심" : "정상 영상";
     const verdictColor = isFake ? "#dc2626" : "#16a34a";
@@ -482,6 +518,7 @@ export default function PrintableReport({
     const totalFrames = timelineChart.length;
 
     const fileExt = analysisData.filename?.split(".").pop()?.toLowerCase() || "mp4";
+    // 백엔드 응답에 모델 목록이 없을 때를 대비해 기본 모델명을 사용한다.
     const modelNames = analysisData.model_names ?? [
         "Vision Transformer",
         "ResNet-50",
@@ -489,6 +526,7 @@ export default function PrintableReport({
     ];
 
     const sortedFramesDesc = [...timelineChart].sort((a, b) => b.fake_prob - a.fake_prob);
+    // 상위 위험 프레임은 하이라이트 카드(오렌지 점) 표시 여부 판단에 사용한다.
     const sortedTop4 = sortedFramesDesc.slice(0, 4).map((d) => d.frame_idx);
 
     const avgProb = totalFrames
@@ -504,17 +542,20 @@ export default function PrintableReport({
         .slice(0, summaryFrameLimit)
         .sort((a, b) => a.frame_idx - b.frame_idx);
 
+    // 페이지별 용량을 맞추기 위해 고정 단위로 chunk 분할한다.
     const frameChunks = chunkArray(timelineChart, 15);
     const normalizedHeatmaps = buildDisplayHeatmapFrames(
         analysisData,
         displayHeatmapFrames
     );
+    // 마크다운 forensic 의견을 PDF 표시용 구조로 변환한다.
     const heatmapChunks = chunkArray(normalizedHeatmaps, 6);
     const finalOpinion = extractFinalOpinionSafe(forensicOpinion) || " ";
     const forensicFrameFindings = parseForensicFrameFindingsSafe(forensicOpinion);
     const technicalRiskAssessments = parseTechnicalRiskAssessmentsSafe(forensicOpinion);
     const totalPdfPages = 2 + heatmapChunks.length + (comparisonNotes.length > 0 ? 1 : 0);
 
+    // 인쇄 안정성을 위해 CSS 파일 의존 대신 inline style 시스템을 사용한다.
     const S = {
         page: {
             width: 794,
@@ -917,6 +958,7 @@ export default function PrintableReport({
 
             {/* PAGE 1 */}
             <div style={S.page} className="pdf-page">
+                {/* 표지 + 핵심 요약(판정, 메타정보, 타임라인 그래프) */}
                 <div style={S.brandBar}>
                     <div style={S.brandLeft}>
                         <div style={{ display: "flex", alignItems: "baseline", gap: 10 }}>
@@ -950,6 +992,7 @@ export default function PrintableReport({
                 </div>
 
                 <div style={S.metaCardWrap}>
+                    {/* 메타 정보는 2행 x 4열 고정 그리드로 배치한다. */}
                     {[
                         { label: "영상 길이", value: analysisData.video_duration || "2분 34초" },
                         { label: "해상도", value: analysisData.resolution || "1920×1080" },
@@ -1012,6 +1055,7 @@ export default function PrintableReport({
                                 프레임별 위조 의심도 그래프 <span style={S.sectionEn}>Frame Probability</span>
                             </div>
 
+                            {/* 핵심 KPI 카드: 피크 프레임, 위험 구간 수, 평균 확률 */}
                             <div style={S.metricGrid}>
                                 {[
                                     { label: "최고 의심 프레임", value: `Frame ${inlineFrameStats.peakIdx}`, unit: "" },
@@ -1063,6 +1107,7 @@ export default function PrintableReport({
                                     </thead>
                                     <tbody>
                                         {modelNames.map((name, i) => {
+                                            // 현재는 개별 모델 확률이 없는 구조라 총 신뢰도 기반 보정치로 시각화한다.
                                             const prob = analysisData.overall_confidence_percent - (i * 3.7) + (i * 2.1);
                                             const clamped = Math.max(0, Math.min(prob, 100));
                                             const risk = clamped >= 70 ? "HIGH" : clamped >= 50 ? "MEDIUM" : "LOW";
@@ -1209,6 +1254,7 @@ export default function PrintableReport({
 
                     <div style={S.frameGrid}>
                         {summaryFrames.map((frame) => {
+                            // 상위 4개 위험 프레임은 별도 강조 스타일(S.frameCardTop) 적용.
                             const isTop = sortedTop4.includes(frame.frame_idx);
                             const riskColor =
                                 frame.fake_prob >= 70 ? "#dc2626" :
@@ -1275,6 +1321,7 @@ export default function PrintableReport({
 
             {/* PAGE 2 */}
             <div style={{ ...S.page, marginTop: 0 }} className="pdf-page">
+                {/* 상세 근거(항목별 분석/프레임 표/종합 의견) */}
                 <div style={S.brandBar}>
                     <div style={S.brandLeft}>
                         <div style={{ display: "flex", alignItems: "baseline", gap: 10 }}>
@@ -1307,6 +1354,7 @@ export default function PrintableReport({
                         </thead>
                         <tbody>
                             {publicItems.map((item, idx) => (
+                                // publicItems: API에서 정리된 항목별 위험도/점수/설명 데이터
                                 <tr key={idx} style={{ background: idx % 2 === 0 ? "#fff" : "#f8fafc" }}>
                                     <td style={{ ...S.td, fontWeight: 700 }}>{item.title}</td>
                                     <td style={{ ...S.td, textAlign: "center" }}>
@@ -1331,6 +1379,7 @@ export default function PrintableReport({
                     </table>
 
                     {technicalRiskAssessments.map((item, index) => (
+                        // forensic 텍스트 파싱 결과를 리스크 카드로 추가 렌더링
                         <div key={`risk-${index}`} style={S.riskBox}>
                             <div style={S.riskBoxTitle}>{item.title}</div>
                             <div style={S.riskBoxText}>{item.description}</div>
@@ -1423,6 +1472,7 @@ export default function PrintableReport({
                     </div>
 
                     {forensicFrameFindings.length > 0 && (
+                        // forensicOpinion에서 파싱한 프레임 근거를 heatmap 이미지와 매칭해 표로 출력
                         <table style={S.findingTable}>
                             <thead>
                                 <tr>
@@ -1433,6 +1483,7 @@ export default function PrintableReport({
                             </thead>
                             <tbody>
                                 {forensicFrameFindings.map((finding, index) => {
+                                    // 프레임 번호 우선, 파일명 보조 기준으로 히트맵 이미지 매칭
                                     const matchedFrame =
                                         normalizedHeatmaps.find((frame) => frame.frame_idx === finding.frameIndex) ||
                                         normalizedHeatmaps.find((frame) => frame.sourceImage?.includes?.(finding.imageName)) ||
@@ -1483,6 +1534,7 @@ export default function PrintableReport({
                         }}
                     >
                         <div style={{ fontSize: 11, lineHeight: 1.9, color: "#374151", whiteSpace: "pre-line" }}>
+                            {/* finalOpinion 파싱 실패 시 자동 생성 템플릿 문구를 사용한다. */}
                             {finalOpinion || `본 영상은 ${verdictText}으로 판정되었으며, 전체 판별 신뢰도는 ${analysisData.overall_confidence_percent.toFixed(1)}%입니다.
 최고 의심 프레임은 Frame ${inlineFrameStats.peakIdx}이며, 위험 구간은 총 ${inlineFrameStats.dangerCount}개 감지되었습니다.
 상위 의심 프레임 전후 구간을 중심으로 얼굴 경계, 배경 이음새, 질감 불연속성, 조명 일관성을 추가 확인하는 것이 권장됩니다.
@@ -1525,6 +1577,7 @@ export default function PrintableReport({
 
             {/* 히트맵 상세 페이지들 */}
             {heatmapChunks.map((chunk, chunkIdx) => (
+                // 프레임 히트맵은 6개 단위로 별도 페이지를 생성한다.
                 <div
                     key={`heatmap-page-${chunkIdx}`}
                     style={{ ...S.page, marginTop: 0 }}
@@ -1557,6 +1610,7 @@ export default function PrintableReport({
 
                         <div style={S.hmGrid}>
                             {chunk.map((frame) => (
+                                // 이미지가 없더라도 카드 구조를 유지해 페이지 높이 흔들림을 방지한다.
                                 <div key={`${frame.frame_idx}-${frame.id}`} style={S.hmCard}>
                                     {frame.image ? (
                                         <img
@@ -1633,6 +1687,7 @@ export default function PrintableReport({
             ))}
 
             {comparisonNotes.length > 0 && (
+                // PDF/JSON 결과 차이를 사람이 검토할 수 있게 마지막 메모 페이지를 옵션으로 붙인다.
                 <div style={{ ...S.page, marginTop: 0 }} className="pdf-page">
                     <div style={S.brandBar}>
                         <div style={S.brandLeft}>
