@@ -344,8 +344,12 @@ function parseTechnicalRiskAssessmentsSafe(markdownText) {
         if (!line) return;
 
         if (line.startsWith("*") && line.includes("**") && line.includes(":")) {
-            const title = line.replace(/^\*\s*/, "").replace(/\*\*/g, "").replace(/:$/, "").trim();
-            current = { title, description: "" };
+            const normalized = line.replace(/^\*\s*/, "").replace(/\*\*/g, "").trim();
+            const [titlePart, ...descriptionParts] = normalized.split(":");
+            current = {
+                title: titlePart.trim(),
+                description: descriptionParts.join(":").trim(),
+            };
             assessments.push(current);
             return;
         }
@@ -359,6 +363,27 @@ function parseTechnicalRiskAssessmentsSafe(markdownText) {
     });
 
     return assessments;
+}
+
+function buildTopFrameExplanations(summaryFrames, forensicFrameFindings, normalizedHeatmaps) {
+    return summaryFrames.slice(0, 4).map((frame, index) => {
+        const matchedFinding = forensicFrameFindings.find((item) => item.frameIndex === frame.frame_idx);
+        const matchedHeatmap = normalizedHeatmaps.find((item) => item.frame_idx === frame.frame_idx);
+        const defaultDescription =
+            frame.fake_prob >= 70
+                ? "프레임 경계와 질감 변화가 두드러져 상위 위험 구간으로 분류되었습니다."
+                : frame.fake_prob >= 50
+                    ? "주요 피사체 주변의 일관성 저하가 감지되어 추가 확인이 필요한 프레임입니다."
+                    : "비교군 대비 위조 확률은 낮지만, 대표 샘플로 포함된 프레임입니다.";
+
+        return {
+            rank: index + 1,
+            frameIndex: frame.frame_idx,
+            probabilityText: matchedFinding?.probabilityText || `${frame.fake_prob.toFixed(1)}%`,
+            imageName: matchedFinding?.imageName || matchedHeatmap?.sourceImage || matchedHeatmap?.image || "-",
+            description: matchedFinding?.analysisText || defaultDescription,
+        };
+    });
 }
 
 function extractTechnicalRiskIntroSafe(markdownText) {
@@ -470,6 +495,11 @@ export default function PrintableReport({
             title: item.title,
             description: item.description,
         }));
+    const topFrameExplanations = buildTopFrameExplanations(
+        sortedFramesDesc,
+        forensicFrameFindings,
+        normalizedHeatmaps
+    );
     const totalPdfPages = 2 + heatmapChunks.length + (comparisonNotes.length > 0 ? 1 : 0);
 
     // 인쇄 안정성을 위해 CSS 파일 의존 대신 inline style 시스템을 사용한다.
@@ -652,8 +682,8 @@ export default function PrintableReport({
             marginTop: 10,
         },
         findingThumb: {
-            width: 84,
-            height: 120,
+            width: 63,
+            height: 90,
             objectFit: "contain",
             display: "block",
             background: "#0f172a",
@@ -661,8 +691,8 @@ export default function PrintableReport({
             border: "1px solid #e2e8f0",
         },
         findingEmpty: {
-            width: 84,
-            height: 120,
+            width: 63,
+            height: 90,
             display: "flex",
             alignItems: "center",
             justifyContent: "center",
@@ -709,14 +739,14 @@ export default function PrintableReport({
         },
         hmImg: {
             width: "100%",
-            height: 195,
+            height: 146,
             objectFit: "contain",
             display: "block",
             background: "#0f172a",
         },
         hmEmpty: {
             width: "100%",
-            height: 195,
+            height: 146,
             background: "#f8fafc",
             display: "flex",
             alignItems: "center",
@@ -1419,6 +1449,37 @@ export default function PrintableReport({
                                         </tr>
                                     );
                                 })}
+                            </tbody>
+                        </table>
+                    )}
+
+                    {topFrameExplanations.length > 0 && (
+                        <table style={S.findingTable}>
+                            <thead>
+                                <tr>
+                                    <th style={{ ...S.th, width: "74px" }}>순위</th>
+                                    <th style={{ ...S.th, width: "92px" }}>프레임</th>
+                                    <th style={{ ...S.th, width: "110px" }}>위조 확률</th>
+                                    <th style={S.th}>상위 4개 프레임별 설명</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {topFrameExplanations.map((item, index) => (
+                                    <tr key={`top-frame-explanation-${item.frameIndex}`} style={{ background: index % 2 === 0 ? "#fff" : "#f8fafc" }}>
+                                        <td style={{ ...S.td, textAlign: "center", fontWeight: 800 }}>
+                                            {item.rank}
+                                        </td>
+                                        <td style={{ ...S.td, fontSize: 10, fontWeight: 700 }}>
+                                            Frame {item.frameIndex}
+                                        </td>
+                                        <td style={{ ...S.td, fontSize: 10, color: "#dc2626", fontWeight: 800 }}>
+                                            {item.probabilityText}
+                                        </td>
+                                        <td style={{ ...S.td, fontSize: 10, lineHeight: 1.7 }}>
+                                            {item.description}
+                                        </td>
+                                    </tr>
+                                ))}
                             </tbody>
                         </table>
                     )}
