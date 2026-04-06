@@ -188,7 +188,7 @@ function normalizeAnalysisData(rawAnalysis) {
         risk: frame.risk,
     }));
 
-    return {
+    const normalizedAnalysis = {
         ...MOCK_ANALYSIS,
         ...rawAnalysis,
         analysis_id: analysisId || MOCK_ANALYSIS.analysis_id,
@@ -216,6 +216,14 @@ function normalizeAnalysisData(rawAnalysis) {
         frame_rate: rawAnalysis.frame_rate || MOCK_ANALYSIS.frame_rate,
         file_size: rawAnalysis.file_size || MOCK_ANALYSIS.file_size,
     };
+
+    normalizedAnalysis.analysis_time =
+        rawAnalysis.analysis_time ||
+        (processTimeSeconds > 0
+            ? `${processTimeSeconds.toFixed(1)}초`
+            : MOCK_ANALYSIS.analysis_time);
+
+    return normalizedAnalysis;
 }
 
 function buildReportPayload(analysisData) {
@@ -1109,10 +1117,7 @@ function FrameGraphPage({ onBack, analysisData }) {
 export default function GalleryPage() {
     const navigate = useNavigate();
     const location = useLocation();
-    const analysisData = useMemo(
-        () => normalizeAnalysisData(location.state?.analysis),
-        [location.state]
-    );
+    const [analysisData, setAnalysisData] = useState(() => normalizeAnalysisData(location.state?.analysis));
     const previewSrc = location.state?.previewSrc || "";
     const videoId = location.state?.videoId || "";
     const displayTitle = location.state?.displayTitle || analysisData.filename || "분석 영상";
@@ -1167,6 +1172,31 @@ export default function GalleryPage() {
         }),
         [analysisData, displayTitle]
     );
+
+    useEffect(() => {
+        setAnalysisData(normalizeAnalysisData(location.state?.analysis));
+    }, [location.state]);
+
+    useEffect(() => {
+        const startedAt = Number(location.state?.analysisStartedAt ?? 0);
+        if (!startedAt) return undefined;
+
+        let cancelled = false;
+        const frameId = window.requestAnimationFrame(() => {
+            if (cancelled) return;
+
+            const elapsedSeconds = (performance.now() - startedAt) / 1000;
+            setAnalysisData((current) => ({
+                ...current,
+                analysis_time: `${elapsedSeconds.toFixed(1)}초`,
+            }));
+        });
+
+        return () => {
+            cancelled = true;
+            window.cancelAnimationFrame(frameId);
+        };
+    }, [location.state, analysisData.analysis_id]);
 
     useEffect(() => {
         setForensicOpinion("");

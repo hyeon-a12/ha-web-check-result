@@ -126,6 +126,7 @@ export default function HomePage() {
                     navigate("/gallery", {
                         state: {
                             analysis: analysisPayload,
+                            analysisStartedAt: analysisStartedAtRef.current,
                             previewSrc,
                             previewKind,
                             videoId: tab === "url" ? urlMeta?.videoId || "" : "",
