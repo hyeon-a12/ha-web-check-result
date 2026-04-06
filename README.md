@@ -2,6 +2,46 @@
 
 This project was bootstrapped with [Create React App](https://github.com/facebook/create-react-app).
 
+## Deployment Environment Variables
+
+This project is set up to use a stable same-origin API path in production:
+
+```text
+/api/*
+```
+
+On Cloudflare Pages, requests to `/api/*` are handled by Pages Functions and proxied to the current backend origin. The frontend does not need to know the real backend URL, so backend address changes only require updating Cloudflare environment variables.
+
+Set these in Cloudflare Pages project settings:
+
+```env
+API_BACKEND_ORIGIN=https://your-api-backend.example.com
+ANALYZE_BACKEND_ORIGIN=https://your-analysis-backend.example.com
+```
+
+Routing behavior:
+
+- `/api/youtube/info`
+- `/api/test-key`
+
+These go to `API_BACKEND_ORIGIN`.
+
+All other `/api/*` requests, including `/api/analyze/*` and image paths used by analysis results, go to `ANALYZE_BACKEND_ORIGIN`.
+
+## Local Development
+
+For local development, use frontend environment variables because `react-scripts start` does not run Cloudflare Pages Functions.
+
+Example `.env.local` values:
+
+```env
+REACT_APP_API_BASE_URL=http://localhost:8000
+REACT_APP_ANALYZE_API_BASE_URL=http://localhost:8001
+REACT_APP_GALLERY_IMAGE_BASE_URL=http://localhost:8001
+```
+
+See `.env.example` for a starter file.
+
 ## Available Scripts
 
 In the project directory, you can run:

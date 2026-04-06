@@ -7,22 +7,33 @@ const normalizeBaseUrl = (base) => {
     return base.endsWith("/") ? base.slice(0, -1) : base;
 };
 
+const getLocationOrigin = () => (
+    typeof window !== "undefined" && window.location?.origin
+        ? normalizeBaseUrl(window.location.origin)
+        : ""
+);
+
+const isLocalhostOrigin = (origin) => /^(https?:\/\/)?(localhost|127\.0\.0\.1)(:\d+)?$/i.test(origin);
+const isLocalRuntime = () => isLocalhostOrigin(getLocationOrigin());
+
 const resolveBaseUrl = () => {
     const envBase = normalizeBaseUrl(process.env.REACT_APP_API_BASE_URL);
     if (envBase) return envBase;
-    if (typeof window !== "undefined" && window.location?.origin) {
-        return normalizeBaseUrl(window.location.origin);
-    }
+    if (!isLocalRuntime()) return "/api";
     return "";
 };
 
 const API_BASE_URL = resolveBaseUrl();
 //분석 api
-const ANALYZE_API_BASE_URL = normalizeBaseUrl(process.env.REACT_APP_ANALYZE_API_BASE_URL);
+const ANALYZE_API_BASE_URL = normalizeBaseUrl(
+    process.env.REACT_APP_ANALYZE_API_BASE_URL || (!isLocalRuntime() ? "/api" : "")
+);
 const ANALYZE_LINK_URL = normalizeBaseUrl(process.env.REACT_APP_ANALYZE_LINK_URL);
 const ANALYZE_FILE_URL = normalizeBaseUrl(process.env.REACT_APP_ANALYZE_FILE_URL);
 const GALLERY_IMAGE_BASE_URL = normalizeBaseUrl(
-    process.env.REACT_APP_GALLERY_IMAGE_BASE_URL || process.env.REACT_APP_ANALYZE_API_BASE_URL
+    process.env.REACT_APP_GALLERY_IMAGE_BASE_URL ||
+    process.env.REACT_APP_ANALYZE_API_BASE_URL ||
+    (!isLocalRuntime() ? "/api" : "")
 );
 const MOCK_YOUTUBE_INFO_URL = "/ha_backend_mock/youtube-info.json";
 const MOCK_GALLERY_ANALYSIS_RESULT_URL = "/ha_backend_mock/gallery-analysis-result.json";
@@ -30,6 +41,14 @@ const MOCK_GALLERY_ANALYSIS_RESULT_URL = "/ha_backend_mock/gallery-analysis-resu
 const buildUrl = (path) => {
     const normalizedPath = path.startsWith("/") ? path : `/${path}`;
     return `${API_BASE_URL}${normalizedPath}`;
+};
+
+const assertConfiguredApiBaseUrl = () => {
+    if (API_BASE_URL) return;
+
+    throw new Error(
+        "API base URL is not configured. In local development, set REACT_APP_API_BASE_URL to your backend origin."
+    );
 };
 
 const buildAnalyzeUrl = (kind) => {
@@ -62,6 +81,7 @@ const parseJson = async (response) => {
 };
 
 const request = async (path, options = {}) => {
+    assertConfiguredApiBaseUrl();
     const response = await fetch(buildUrl(path), options);
     const payload = await parseJson(response);
 
