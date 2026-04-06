@@ -69,6 +69,9 @@ export const resolveGalleryImageUrl = (path) => {
     }
 
     const normalizedPath = path.startsWith("/") ? path : `/${path}`;
+    if (GALLERY_IMAGE_BASE_URL === "/api" && normalizedPath.startsWith("/api/")) {
+        return normalizedPath;
+    }
     return GALLERY_IMAGE_BASE_URL ? `${GALLERY_IMAGE_BASE_URL}${normalizedPath}` : normalizedPath;
 };
 
