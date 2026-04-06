@@ -15,6 +15,7 @@ const getLocationOrigin = () => (
 
 const isLocalhostOrigin = (origin) => /^(https?:\/\/)?(localhost|127\.0\.0\.1)(:\d+)?$/i.test(origin);
 const isLocalRuntime = () => isLocalhostOrigin(getLocationOrigin());
+const isAbsoluteUrl = (value) => /^https?:\/\//i.test(value || "");
 
 const resolveBaseUrl = () => {
     const envBase = normalizeBaseUrl(process.env.REACT_APP_API_BASE_URL);
@@ -64,15 +65,21 @@ export const resolveGalleryImageUrl = (path) => {
         return path;
     }
 
-    if (/^https?:\/\//i.test(path)) {
+    if (isAbsoluteUrl(path)) {
         return path;
     }
 
     const normalizedPath = path.startsWith("/") ? path : `/${path}`;
+    const adjustedPath =
+        isAbsoluteUrl(GALLERY_IMAGE_BASE_URL) && normalizedPath.startsWith("/api/")
+            ? normalizedPath.replace(/^\/api/, "")
+            : normalizedPath;
+
     if (GALLERY_IMAGE_BASE_URL === "/api" && normalizedPath.startsWith("/api/")) {
         return normalizedPath;
     }
-    return GALLERY_IMAGE_BASE_URL ? `${GALLERY_IMAGE_BASE_URL}${normalizedPath}` : normalizedPath;
+
+    return GALLERY_IMAGE_BASE_URL ? `${GALLERY_IMAGE_BASE_URL}${adjustedPath}` : adjustedPath;
 };
 
 const parseJson = async (response) => {

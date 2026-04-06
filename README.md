@@ -28,6 +28,24 @@ These go to `API_BACKEND_ORIGIN`.
 
 All other `/api/*` requests, including `/api/analyze/*` and image paths used by analysis results, go to `ANALYZE_BACKEND_ORIGIN`.
 
+## Split Deployment Recommendation
+
+If PDF download requires HTTPS on Cloudflare Pages but the analysis request is too slow and hits Cloudflare timeout, keep only the short API calls behind `/api` and call the analysis server directly from the browser over HTTPS.
+
+Recommended frontend variables for that setup:
+
+```env
+REACT_APP_ANALYZE_API_BASE_URL=https://your-analysis-server.example.com
+REACT_APP_GALLERY_IMAGE_BASE_URL=https://your-analysis-server.example.com
+```
+
+In that mode:
+
+- `/youtube/info` and `/test-key` still use Cloudflare Pages `/api/*`
+- `/analyze/link`, `/analyze/file`, and heatmap image paths go directly to the HTTPS analysis server
+
+The analysis server must allow CORS for your Pages domain.
+
 ## Local Development
 
 For local development, use frontend environment variables because `react-scripts start` does not run Cloudflare Pages Functions.
