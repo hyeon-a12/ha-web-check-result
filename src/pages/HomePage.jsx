@@ -1,9 +1,23 @@
-import React, { useEffect, useMemo, useRef, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 
 import DropzoneUpload from "../components/DropzoneUpload";
 import LoadingOverlay from "../components/LoadingOverlay";
 import { analyzeVideoFile, analyzeVideoLink, fetchYoutubeInfo } from "../services/api";
+
+const ANALYSIS_STAGES = [
+    { threshold: 0, text: "분석을 위한 데이터를 준비하고 있습니다" },
+    { threshold: 35, text: "프레임 흐름과 위험 구간을 분석하고 있습니다" },
+    { threshold: 70, text: "최종 결과를 정리하고 있습니다" },
+];
+
+function getStageText(progress) {
+    let current = ANALYSIS_STAGES[0].text;
+    for (const stage of ANALYSIS_STAGES) {
+        if (progress >= stage.threshold) current = stage.text;
+    }
+    return current;
+}
 
 export default function HomePage() {
     const navigate = useNavigate();
@@ -11,6 +25,8 @@ export default function HomePage() {
     const [tab, setTab] = useState("file");
     const dropzoneRef = useRef(null);
     const analysisStartedAtRef = useRef(null);
+    const progressTimerRef = useRef(null);
+    const finishTimerRef = useRef(null);
 
     const [selectedFile, setSelectedFile] = useState(null);
     const [previewSrc, setPreviewSrc] = useState("");
@@ -22,39 +38,103 @@ export default function HomePage() {
 
     const [loadingOpen, setLoadingOpen] = useState(false);
     const [progress, setProgress] = useState(0);
-    const [stageText, setStageText] = useState("분석을 위한 데이터를 처리하는 중입니다");
 
-    const stages = useMemo(
-        () => [
-            { threshold: 0, text: "분석을 위한 데이터를 처리하는 중입니다" },
-            { threshold: 35, text: "프레임 및 합성 구간 후보를 분석하는 중입니다" },
-            { threshold: 70, text: "최종 분석 리포트를 생성하고 있습니다" },
-        ],
-        []
-    );
-
+    const stageText = useMemo(() => getStageText(progress), [progress]);
     const canAnalyze = tab === "file" ? Boolean(selectedFile) : Boolean(urlValue.trim());
+
+    const clearLoadingTimers = () => {
+        if (progressTimerRef.current) {
+            clearInterval(progressTimerRef.current);
+            progressTimerRef.current = null;
+        }
+
+        if (finishTimerRef.current) {
+            clearTimeout(finishTimerRef.current);
+            finishTimerRef.current = null;
+        }
+    };
+
+    const resetLoadingState = () => {
+        clearLoadingTimers();
+        setProgress(0);
+        setAnalysisResult(null);
+    };
+
+    const navigateToGallery = useCallback(() => {
+        const elapsedSeconds = analysisStartedAtRef.current == null
+            ? null
+            : (performance.now() - analysisStartedAtRef.current) / 1000;
+        const analysisPayload = analysisResult && elapsedSeconds != null
+            ? {
+                ...analysisResult,
+                analysis_time: `${elapsedSeconds.toFixed(1)}초`,
+            }
+            : analysisResult;
+
+        setLoadingOpen(false);
+        clearLoadingTimers();
+
+        navigate("/gallery", {
+            state: {
+                analysis: analysisPayload,
+                analysisStartedAt: analysisStartedAtRef.current,
+                previewSrc,
+                previewKind,
+                videoId: tab === "url" ? urlMeta?.videoId || "" : "",
+                displayTitle:
+                    tab === "file"
+                        ? selectedFile?.name || "업로드한 영상"
+                        : urlMeta?.title || urlValue?.trim() || "분석 영상",
+            },
+        });
+
+        analysisStartedAtRef.current = null;
+    }, [analysisResult, navigate, previewKind, previewSrc, selectedFile?.name, tab, urlMeta?.title, urlMeta?.videoId, urlValue]);
+
+    const startProgressSimulation = () => {
+        if (progressTimerRef.current) return;
+
+        const startedAt = performance.now();
+        const tickMs = 120;
+        const softCap = 92;
+        const totalMs = 9000;
+
+        progressTimerRef.current = setInterval(() => {
+            const elapsed = performance.now() - startedAt;
+            const t = Math.min(elapsed / totalMs, 1);
+            const eased = softCap * (1 - Math.pow(1 - t, 3));
+            const nextValue = Math.min(softCap, Math.round(eased));
+
+            setProgress((prev) => Math.max(prev, nextValue));
+
+            if (nextValue >= softCap) {
+                clearInterval(progressTimerRef.current);
+                progressTimerRef.current = null;
+            }
+        }, tickMs);
+    };
 
     const onAnalyzeClick = async () => {
         if (!canAnalyze) {
-            alert(tab === "file" ? "파일을 선택해 주세요." : "URL을 입력해 주세요.");
+            alert(tab === "file" ? "파일을 선택해주세요." : "URL을 입력해주세요.");
             return;
         }
 
         analysisStartedAtRef.current = performance.now();
+        resetLoadingState();
 
         if (tab === "url") {
             setUrlMeta(null);
-            setAnalysisResult(null);
             setPreviewSrc("");
             setPreviewKind("image");
-            setLoadingOpen(true);
 
             try {
                 const info = await fetchYoutubeInfo(urlValue.trim());
                 setUrlMeta(info);
                 setPreviewSrc(info.thumbnail || "");
                 setPreviewKind("image");
+                setLoadingOpen(true);
+                startProgressSimulation();
 
                 const analysis = await analyzeVideoLink(urlValue.trim());
                 setAnalysisResult({
@@ -65,14 +145,15 @@ export default function HomePage() {
                 console.error(error);
                 alert(error?.message || "URL 분석 중 오류가 발생했습니다.");
                 setLoadingOpen(false);
+                clearLoadingTimers();
                 analysisStartedAtRef.current = null;
             }
 
             return;
         }
 
-        setAnalysisResult(null);
         setLoadingOpen(true);
+        startProgressSimulation();
 
         try {
             const analysis = await analyzeVideoFile(selectedFile);
@@ -81,68 +162,35 @@ export default function HomePage() {
             console.error(error);
             alert(error?.message || "파일 분석 중 오류가 발생했습니다.");
             setLoadingOpen(false);
+            clearLoadingTimers();
             analysisStartedAtRef.current = null;
         }
     };
 
     const loadingFileLabel =
         tab === "file"
-            ? selectedFile?.name ?? "파일을 선택해 주세요."
-            : urlMeta?.title || urlValue?.trim() || "URL을 입력해 주세요.";
+            ? selectedFile?.name ?? "파일을 선택해주세요."
+            : urlMeta?.title || "영상 정보를 불러오는 중입니다";
 
     useEffect(() => {
-        if (!loadingOpen) return;
+        if (!loadingOpen || !analysisResult) return undefined;
 
-        setProgress(0);
-        setStageText(stages[0].text);
+        clearLoadingTimers();
+        setProgress((prev) => Math.max(prev, 100));
 
-        let p = 0;
-        const timer = setInterval(() => {
-            const waitingForAnalysis = !analysisResult;
-            p = waitingForAnalysis ? Math.min(p + 5, 95) : Math.min(p + 5, 100);
-            setProgress(p);
+        finishTimerRef.current = setTimeout(() => {
+            navigateToGallery();
+        }, 260);
 
-            for (let i = stages.length - 1; i >= 0; i -= 1) {
-                if (p >= stages[i].threshold) {
-                    setStageText(stages[i].text);
-                    break;
-                }
+        return () => {
+            if (finishTimerRef.current) {
+                clearTimeout(finishTimerRef.current);
+                finishTimerRef.current = null;
             }
+        };
+    }, [analysisResult, loadingOpen, navigateToGallery]);
 
-            if (p >= 100) {
-                clearInterval(timer);
-                setTimeout(() => {
-                    const elapsedSeconds = analysisStartedAtRef.current == null
-                        ? null
-                        : (performance.now() - analysisStartedAtRef.current) / 1000;
-                    const analysisPayload = analysisResult && elapsedSeconds != null
-                        ? {
-                            ...analysisResult,
-                            analysis_time: `${elapsedSeconds.toFixed(1)}초`,
-                        }
-                        : analysisResult;
-
-                    setLoadingOpen(false);
-                    navigate("/gallery", {
-                        state: {
-                            analysis: analysisPayload,
-                            analysisStartedAt: analysisStartedAtRef.current,
-                            previewSrc,
-                            previewKind,
-                            videoId: tab === "url" ? urlMeta?.videoId || "" : "",
-                            displayTitle:
-                                tab === "file"
-                                    ? selectedFile?.name || "업로드한 영상"
-                                    : urlMeta?.title || urlValue?.trim() || "분석할 영상",
-                        },
-                    });
-                    analysisStartedAtRef.current = null;
-                }, 200);
-            }
-        }, 120);
-
-        return () => clearInterval(timer);
-    }, [analysisResult, loadingOpen, navigate, previewKind, previewSrc, selectedFile, stages, tab, urlMeta, urlValue]);
+    useEffect(() => () => clearLoadingTimers(), []);
 
     const onClickFileTab = () => {
         setTab("file");
@@ -177,8 +225,8 @@ export default function HomePage() {
                                 </span>
                             </h1>
                             <p>
-                                딥러닝 기술로 영상의 위변조 여부를 분석하고,
-                                <br /> 의심 구간과 근거를 명확하게 제시합니다.
+                                포렌식 기술로 영상의 위변조 여부를 분석하고,
+                                <br /> 수상 구간과 그 근거를 명확하게 제시합니다.
                             </p>
                         </div>
 
@@ -189,7 +237,10 @@ export default function HomePage() {
                             previewKind={previewKind}
                             stageText={stageText}
                             progress={progress}
-                            onClose={() => setLoadingOpen(false)}
+                            onClose={() => {
+                                setLoadingOpen(false);
+                                clearLoadingTimers();
+                            }}
                         />
                     </div>
 
@@ -250,7 +301,7 @@ export default function HomePage() {
                                         <div className="url-head">
                                             <p className="url-title">URL 붙여넣기</p>
                                             <p className="url-sub">
-                                                유튜브 영상 링크를 입력하면 분석을 시작할 수 있어요.
+                                                유튜브 영상 링크를 입력하면 분석이 시작됩니다
                                             </p>
                                         </div>
 

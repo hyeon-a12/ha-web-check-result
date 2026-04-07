@@ -476,6 +476,7 @@ function parseRankedFrameAnalysisV2(markdownText) {
         .filter(Boolean);
 }
 
+// eslint-disable-next-line no-unused-vars
 function extractFrameAnalysisIntroV3(markdownText) {
     const sectionText = extractSectionLinesSafe(markdownText, 2)
         .map((line) => line.replace(/\*\*(.+?)\*\*/g, "$1").trim())
@@ -491,6 +492,7 @@ function extractFrameAnalysisIntroV3(markdownText) {
     return introLines.join(" ").trim();
 }
 
+// eslint-disable-next-line no-unused-vars
 function parseRankedFrameAnalysisV3(markdownText) {
     const sectionText = extractSectionLinesSafe(markdownText, 2)
         .map((line) => line.replace(/\*\*(.+?)\*\*/g, "$1"))
@@ -538,6 +540,73 @@ function buildTopFrameExplanations(summaryFrames, forensicFrameFindings, normali
             description: matchedFinding?.analysisText || defaultDescription,
         };
     });
+}
+
+function extractFrameAnalysisIntroV4(markdownText) {
+    const sectionText = extractSectionLinesSafe(markdownText, 2)
+        .map((line) =>
+            line
+                .replace(/\*\*(.+?)\*\*/g, "$1")
+                .replace(/`([^`]+)`/g, "$1")
+                .replace(/^\*\s*/, "")
+                .trim()
+        )
+        .filter(Boolean);
+
+    const introLines = [];
+    for (const line of sectionText) {
+        if (/(?:프레임|frame)\s+\d+\s*\(rank/i.test(line)) break;
+        introLines.push(line);
+    }
+
+    return introLines.join(" ").trim();
+}
+
+function parseRankedFrameAnalysisV4(markdownText) {
+    const normalizedText = extractSectionLinesSafe(markdownText, 2)
+        .join("\n")
+        .replace(/\r/g, "")
+        .replace(/\*\*/g, "")
+        .replace(/`([^`]+)`/g, "$1")
+        .replace(/\n\s*\*\s*\n/g, "\n")
+        .replace(/\n\s*\*\s*/g, "\n")
+        .trim();
+
+    const frameStartRegex = /(?:^|\n)\s*(?:프레임|frame)\s+(\d+)\s*\(rank\s*(\d+)\)\s*:/gi;
+    const matches = Array.from(normalizedText.matchAll(frameStartRegex));
+
+    return matches.map((match, index) => {
+        const start = match.index ?? 0;
+        const end = index + 1 < matches.length ? (matches[index + 1].index ?? normalizedText.length) : normalizedText.length;
+        const block = normalizedText.slice(start, end).trim();
+        const probabilityMatch = block.match(/fake_prob:\s*(\d+(?:\.\d+)?)%,\s*real_prob:\s*(\d+(?:\.\d+)?)%/i);
+        const descriptionMatch = block.match(/(?:이미지 분석|image analysis):\s*([\s\S]*)/i);
+
+        return {
+            frameIndex: Number(match[1]),
+            rank: Number(match[2]),
+            probabilityText: probabilityMatch
+                ? `fake_prob: ${probabilityMatch[1]}%, real_prob: ${probabilityMatch[2]}%`
+                : "-",
+            analysisText: descriptionMatch
+                ? descriptionMatch[1].replace(/\s+/g, " ").trim()
+                : "",
+        };
+    }).filter((item) => item.frameIndex > 0);
+}
+
+function extractFrameAnalysisClosingV4(markdownText) {
+    const normalizedText = extractSectionLinesSafe(markdownText, 2)
+        .join("\n")
+        .replace(/\r/g, "")
+        .replace(/\*\*/g, "")
+        .replace(/`([^`]+)`/g, "$1")
+        .replace(/\n\s*\*\s*\n/g, "\n")
+        .replace(/\n\s*\*\s*/g, "\n")
+        .trim();
+
+    const summaryMatch = normalizedText.match(/(?:^|\n)\s*종합적으로 볼 때[\s\S]*$/i);
+    return summaryMatch ? summaryMatch[0].replace(/\s+/g, " ").trim() : "";
 }
 
 function extractTechnicalRiskIntroSafe(markdownText) {
@@ -640,10 +709,11 @@ export default function PrintableReport({
     // 마크다운 forensic 의견을 PDF 표시용 구조로 변환한다.
     const heatmapChunks = chunkArray(normalizedHeatmaps, 6);
     const finalOpinion = sanitizePdfOpinionText(extractPdfFinalOpinion(forensicOpinion)) || " ";
-    const forensicFrameFindings = parseRankedFrameAnalysisV3(forensicOpinion);
+    const forensicFrameFindings = parseRankedFrameAnalysisV4(forensicOpinion);
     const technicalRiskAssessments = parseTechnicalRiskAssessmentsSafe(forensicOpinion);
     const technicalRiskIntro = extractTechnicalRiskIntroSafe(forensicOpinion);
-    const frameAnalysisIntro = extractFrameAnalysisIntroV3(forensicOpinion);
+    const frameAnalysisIntro = extractFrameAnalysisIntroV4(forensicOpinion);
+    const frameAnalysisClosing = extractFrameAnalysisClosingV4(forensicOpinion);
     const detailItems = technicalRiskAssessments.length > 0
         ? technicalRiskAssessments
         : publicItems.map((item) => ({
@@ -1627,6 +1697,23 @@ export default function PrintableReport({
                                 })}
                             </tbody>
                         </table>
+                    )}
+
+                    {frameAnalysisClosing && (
+                        <div
+                            style={{
+                                fontSize: 10,
+                                color: "#475569",
+                                lineHeight: 1.7,
+                                marginTop: 10,
+                                padding: "10px 12px",
+                                border: "1px solid #e2e8f0",
+                                borderRadius: 6,
+                                background: "#f8fafc",
+                            }}
+                        >
+                            {frameAnalysisClosing}
+                        </div>
                     )}
 
                     {false && forensicFrameFindings.length > 0 && (
