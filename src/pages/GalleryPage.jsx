@@ -741,14 +741,14 @@ function HeatmapGallerySection({
                         className={`heatmap-guide-chip${activeSection === "featured" ? " active" : ""}`}
                         onClick={() => setActiveSection("featured")}
                     >
-                        상위 4개 프레임 우선 노출
+                        상위 4개 프레임
                     </button>
                     <button
                         type="button"
                         className={`heatmap-guide-chip${activeSection === "remaining" ? " active" : ""}`}
                         onClick={() => setActiveSection("remaining")}
                     >
-                        나머지 프레임 아래에서 확인
+                        전체 프레임 확인
                     </button>
                 </div>
 
@@ -798,7 +798,7 @@ function HeatmapGallerySection({
 
                 {remaining.length > 0 && activeSection === "remaining" && (
                     <div className="heatmap-gallery-block">
-                        <h4 className="heatmap-subtitle">나머지 프레임 갤러리</h4>
+                        <h4 className="heatmap-subtitle">히트맵 프레임 갤러리</h4>
                         <p className="heatmap-subdesc">
                             프레임 탭을 클릭하면 해당 히트맵을 크게 볼 수 있습니다.
                         </p>
@@ -1866,7 +1866,7 @@ export default function GalleryPage() {
                             <HeatmapGallerySection
                                 frames={displayHeatmapFrames}
                                 title="AI 생성 영상 탐지 히트맵"
-                                description="위조 확률이 가장 높은 상위 4개 프레임을 먼저 보여주고, 나머지 프레임은 탭을 눌러 갤러리처럼 확인할 수 있습니다."
+                                description="위조 확률이 가장 높은 상위 4개 프레임입니다. 나머지 프레임은 탭을 눌러 갤러리처럼 확인할 수 있습니다."
                             />
                         </div>
                     )}
