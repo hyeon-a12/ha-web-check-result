@@ -148,58 +148,22 @@ function getHeatmapGalleryData(frames) {
 function renderSummaryMarkdown(summaryText) {
     if (!summaryText) return null;
 
-    const blocks = summaryText
-        .split(/\n\s*\n/)
-        .map((block) => block.trim())
-        .filter(Boolean);
+    const lines = summaryText
+        .split(/\r?\n/)
+        .map((line) => line.replace(/\*\*(.+?)\*\*/g, "$1"));
 
-    return blocks.map((block, index) => {
-        const lines = block
-            .split(/\r?\n/)
-            .map((line) => line.trim().replace(/\*\*(.+?)\*\*/g, "$1"))
-            .filter(Boolean);
-        if (lines.length === 0) return null;
-
-        if (lines.every((line) => /^[-*]\s+/.test(line))) {
-            return (
-                <ul key={`summary-block-${index}`} style={{ margin: "0 0 14px", paddingLeft: 20, color: "#374151" }}>
-                    {lines.map((line, itemIndex) => (
-                        <li key={`summary-item-${index}-${itemIndex}`} style={{ marginBottom: 6, lineHeight: 1.8 }}>
-                            {line.replace(/^[-*]\s+/, "")}
-                        </li>
-                    ))}
-                </ul>
-            );
+    const visibleLines = lines.filter((line, index) => {
+        if (index === 0 && /^#{1,3}\s+/.test(line.trim())) {
+            return false;
         }
-
-        const headingMatch = lines[0].match(/^#{1,3}\s+(.+)$/);
-        if (headingMatch) {
-            if (lines.length === 1) {
-                return null;
-            }
-            return (
-                <div key={`summary-block-${index}`} style={{ marginBottom: 16 }}>
-                    {lines.slice(1).map((line, paragraphIndex) => (
-                        <p
-                            key={`summary-paragraph-${index}-${paragraphIndex}`}
-                            style={{ margin: "0 0 10px", color: "#374151", lineHeight: 1.85 }}
-                        >
-                            {line}
-                        </p>
-                    ))}
-                </div>
-            );
-        }
-
-        return (
-            <p
-                key={`summary-block-${index}`}
-                style={{ margin: "0 0 14px", color: "#374151", lineHeight: 1.85 }}
-            >
-                {lines.join(" ")}
-            </p>
-        );
+        return true;
     });
+
+    return (
+        <div style={{ whiteSpace: "pre-wrap" }}>
+            {visibleLines.join("\n").trim()}
+        </div>
+    );
 }
 
 // ─── PDF 진행률 시뮬레이터 ────────────────────────────────────
