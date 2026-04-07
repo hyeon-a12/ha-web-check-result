@@ -193,6 +193,7 @@ function normalizeAnalysisData(rawAnalysis) {
         ...rawAnalysis,
         analysis_id: analysisId || MOCK_ANALYSIS.analysis_id,
         filename: rawAnalysis.filename || MOCK_ANALYSIS.filename,
+        ai_summary: rawAnalysis.ai_summary || rawAnalysis.aiSummary || "",
         final_prediction: rawAnalysis.final_prediction || rawAnalysis.finalPrediction || MOCK_ANALYSIS.final_prediction,
         overall_confidence_percent: confidence || MOCK_ANALYSIS.overall_confidence_percent,
         process_time_seconds: processTimeSeconds,
@@ -1850,6 +1851,26 @@ export default function GalleryPage() {
                                 title="AI 생성 영상 탐지 히트맵"
                                 description="위조 확률이 가장 높은 상위 4개 프레임을 먼저 보여주고, 나머지 프레임은 탭을 눌러 갤러리처럼 확인할 수 있습니다."
                             />
+                        </div>
+                    )}
+
+                    {analysisData.ai_summary && (
+                        <div className="card section-card">
+                            <h3 className="section-title">종합 분석 요약</h3>
+                            <div
+                                style={{
+                                    background: "#f9fafb",
+                                    border: "1px solid #e5e7eb",
+                                    borderRadius: 14,
+                                    padding: "20px 22px",
+                                    color: "#374151",
+                                    fontSize: 15,
+                                    lineHeight: 1.8,
+                                    whiteSpace: "pre-wrap",
+                                }}
+                            >
+                                {analysisData.ai_summary}
+                            </div>
                         </div>
                     )}
 
