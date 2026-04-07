@@ -744,8 +744,9 @@ export default function PrintableReport({
 
         hmGrid: {
             display: "grid",
-            gridTemplateColumns: "repeat(2, 1fr)",
-            gap: 12,
+            gridTemplateColumns: "repeat(3, 1fr)",
+            gap: 10,
+            alignItems: "start",
         },
         hmCard: {
             border: "1px solid #e2e8f0",
@@ -755,17 +756,27 @@ export default function PrintableReport({
             boxShadow: "0 2px 8px rgba(15,23,42,0.05)",
             display: "flex",
             flexDirection: "column",
+            breakInside: "avoid",
+            pageBreakInside: "avoid",
+        },
+        hmMedia: {
+            width: 120,
+            height: 213,
+            margin: "12px auto 0",
+            borderRadius: 8,
+            overflow: "hidden",
+            background: "#0f172a",
         },
         hmImg: {
             width: "100%",
-            height: 146,
+            height: "100%",
             objectFit: "contain",
             display: "block",
             background: "#0f172a",
         },
         hmEmpty: {
             width: "100%",
-            height: 146,
+            height: "100%",
             background: "#f8fafc",
             display: "flex",
             alignItems: "center",
@@ -777,9 +788,9 @@ export default function PrintableReport({
             fontWeight: 700,
         },
         hmMeta: {
-            padding: "7px 10px",
-            fontSize: 9.5,
-            lineHeight: 1.6,
+            padding: "6px 8px",
+            fontSize: 9,
+            lineHeight: 1.5,
             color: "#374151",
         },
         compareList: {
@@ -1596,6 +1607,7 @@ export default function PrintableReport({
                             {chunk.map((frame) => (
                                 // 이미지가 없더라도 카드 구조를 유지해 페이지 높이 흔들림을 방지한다.
                                 <div key={`${frame.frame_idx}-${frame.id}`} style={S.hmCard}>
+                                    <div style={S.hmMedia}>
                                     {frame.image ? (
                                         <img
                                             src={frame.image}
@@ -1609,6 +1621,7 @@ export default function PrintableReport({
                                             <div>히트맵 이미지 없음</div>
                                         </div>
                                     )}
+                                    </div>
 
                                     <div style={S.hmMeta}>
                                         <div
