@@ -381,6 +381,7 @@ function parseTechnicalRiskAssessmentsSafe(markdownText) {
     return assessments;
 }
 
+// eslint-disable-next-line no-unused-vars
 function extractFrameAnalysisIntroSafe(markdownText) {
     const sectionText = extractSectionLinesSafe(markdownText, 2)
         .map((line) => line.replace(/\*\*(.+?)\*\*/g, "$1").trim())
@@ -396,6 +397,7 @@ function extractFrameAnalysisIntroSafe(markdownText) {
     return introLines.join(" ").trim();
 }
 
+// eslint-disable-next-line no-unused-vars
 function parseRankedFrameAnalysisSafe(markdownText) {
     const normalizedText = extractSectionLinesSafe(markdownText, 2)
         .map((line) => line.replace(/\*\*(.+?)\*\*/g, "$1"))
@@ -410,6 +412,53 @@ function parseRankedFrameAnalysisSafe(markdownText) {
 
             const probabilityMatch = block.match(/fake_prob:\s*(\d+(?:\.\d+)?)%,\s*real_prob:\s*(\d+(?:\.\d+)?)%/i);
             const descriptionMatch = block.match(/이미지 분석:\s*([\s\S]*)/i);
+
+            return {
+                frameIndex: Number(frameMatch[1]),
+                rank: Number(frameMatch[2]),
+                probabilityText: probabilityMatch
+                    ? `fake_prob: ${probabilityMatch[1]}%, real_prob: ${probabilityMatch[2]}%`
+                    : "-",
+                analysisText: descriptionMatch
+                    ? descriptionMatch[1].replace(/\s+/g, " ").trim()
+                    : "",
+            };
+        })
+        .filter(Boolean);
+}
+
+function extractFrameAnalysisIntroV2(markdownText) {
+    const sectionText = extractSectionLinesSafe(markdownText, 2)
+        .map((line) => line.replace(/\*\*(.+?)\*\*/g, "$1").trim())
+        .filter(Boolean);
+
+    const introLines = [];
+    for (const line of sectionText) {
+        if (/rank\s*\d+/i.test(line)) break;
+        if (line === "*") continue;
+        introLines.push(line);
+    }
+
+    return introLines.join(" ").trim();
+}
+
+function parseRankedFrameAnalysisV2(markdownText) {
+    const normalizedText = extractSectionLinesSafe(markdownText, 2)
+        .map((line) => line.replace(/\*\*(.+?)\*\*/g, "$1"))
+        .join("\n");
+
+    const frameBlocks = normalizedText
+        .split(/\n\s*\*\s*/)
+        .map((block) => block.trim())
+        .filter(Boolean);
+
+    return frameBlocks
+        .map((block) => {
+            const frameMatch = block.match(/(?:프레임|frame)\s+(\d+)\s*\(rank\s*(\d+)\)/i);
+            if (!frameMatch) return null;
+
+            const probabilityMatch = block.match(/fake_prob:\s*(\d+(?:\.\d+)?)%,\s*real_prob:\s*(\d+(?:\.\d+)?)%/i);
+            const descriptionMatch = block.match(/(?:이미지 분석|image analysis):\s*([\s\S]*)/i);
 
             return {
                 frameIndex: Number(frameMatch[1]),
@@ -546,10 +595,10 @@ export default function PrintableReport({
     // 마크다운 forensic 의견을 PDF 표시용 구조로 변환한다.
     const heatmapChunks = chunkArray(normalizedHeatmaps, 6);
     const finalOpinion = sanitizePdfOpinionText(extractPdfFinalOpinion(forensicOpinion)) || " ";
-    const forensicFrameFindings = parseRankedFrameAnalysisSafe(forensicOpinion);
+    const forensicFrameFindings = parseRankedFrameAnalysisV2(forensicOpinion);
     const technicalRiskAssessments = parseTechnicalRiskAssessmentsSafe(forensicOpinion);
     const technicalRiskIntro = extractTechnicalRiskIntroSafe(forensicOpinion);
-    const frameAnalysisIntro = extractFrameAnalysisIntroSafe(forensicOpinion);
+    const frameAnalysisIntro = extractFrameAnalysisIntroV2(forensicOpinion);
     const detailItems = technicalRiskAssessments.length > 0
         ? technicalRiskAssessments
         : publicItems.map((item) => ({
@@ -1399,6 +1448,7 @@ export default function PrintableReport({
                         <span style={S.sectionEn}>Analysis Confidence Timeline</span>
                     </div>
 
+                    {false && (
                     <div
                         style={{
                             border: "1px solid #e2e8f0",
@@ -1476,6 +1526,7 @@ export default function PrintableReport({
                             </div>
                         ))}
                     </div>
+                    )}
 
                     {frameAnalysisIntro && (
                         <div style={{ fontSize: 10, color: "#475569", lineHeight: 1.7, marginTop: 10, marginBottom: 10 }}>
