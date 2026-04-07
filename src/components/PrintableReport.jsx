@@ -240,7 +240,7 @@ function extractFinalOpinionSafe(markdownText) {
 }
 
 function extractPdfFinalOpinion(markdownText) {
-    const stopPattern = /^(감정인 서명|서명|감정 기관명|연락처|이메일|\[감정인 이름\])/i;
+    const stopPattern = /^(감정인|감정인 서명|성명|날짜|서명|감정 기관명|연락처|이메일|\[감정인 이름\])/i;
     const sectionLines = extractSectionLinesSafe(markdownText, 4);
     const extracted = [];
 
@@ -542,6 +542,40 @@ function buildTopFrameExplanations(summaryFrames, forensicFrameFindings, normali
     });
 }
 
+function parseRankedFrameAnalysisV5(markdownText) {
+    const normalizedText = extractSectionLinesSafe(markdownText, 2)
+        .join("\n")
+        .replace(/\r/g, "")
+        .replace(/\*\*/g, "")
+        .replace(/`([^`]+)`/g, "$1")
+        .replace(/\n\s*\*\s*\n/g, "\n")
+        .replace(/\n\s*\*\s*/g, "\n")
+        .trim();
+
+    const frameStartRegex = /(?:^|\n)\s*(?:[*-]\s*)?(?:프레임|frame)?\s*(\d+)\s*\(rank\s*(\d+)\)\s*:/gi;
+    const matches = Array.from(normalizedText.matchAll(frameStartRegex));
+
+    return matches.map((match, index) => {
+        const start = match.index ?? 0;
+        const end = index + 1 < matches.length ? (matches[index + 1].index ?? normalizedText.length) : normalizedText.length;
+        const block = normalizedText.slice(start, end).trim();
+        const probabilityMatch = block.match(/fake_prob:\s*(\d+(?:\.\d+)?)%,\s*real_prob:\s*(\d+(?:\.\d+)?)%/i);
+        const markerMatch = block.match(/(?:이미지\s*분석|image\s*analysis|analysis)\s*:/i);
+        const descriptionText = markerMatch && markerMatch.index != null
+            ? block.slice(markerMatch.index + markerMatch[0].length).replace(/\s+/g, " ").trim()
+            : "";
+
+        return {
+            frameIndex: Number(match[1]),
+            rank: Number(match[2]),
+            probabilityText: probabilityMatch
+                ? `fake_prob: ${probabilityMatch[1]}%, real_prob: ${probabilityMatch[2]}%`
+                : "-",
+            analysisText: descriptionText,
+        };
+    }).filter((item) => item.frameIndex > 0);
+}
+
 function extractFrameAnalysisIntroV4(markdownText) {
     const sectionText = extractSectionLinesSafe(markdownText, 2)
         .map((line) =>
@@ -562,6 +596,7 @@ function extractFrameAnalysisIntroV4(markdownText) {
     return introLines.join(" ").trim();
 }
 
+// eslint-disable-next-line no-unused-vars
 function parseRankedFrameAnalysisV4(markdownText) {
     const normalizedText = extractSectionLinesSafe(markdownText, 2)
         .join("\n")
@@ -709,7 +744,7 @@ export default function PrintableReport({
     // 마크다운 forensic 의견을 PDF 표시용 구조로 변환한다.
     const heatmapChunks = chunkArray(normalizedHeatmaps, 6);
     const finalOpinion = sanitizePdfOpinionText(extractPdfFinalOpinion(forensicOpinion)) || " ";
-    const forensicFrameFindings = parseRankedFrameAnalysisV4(forensicOpinion);
+    const forensicFrameFindings = parseRankedFrameAnalysisV5(forensicOpinion);
     const technicalRiskAssessments = parseTechnicalRiskAssessmentsSafe(forensicOpinion);
     const technicalRiskIntro = extractTechnicalRiskIntroSafe(forensicOpinion);
     const frameAnalysisIntro = extractFrameAnalysisIntroV4(forensicOpinion);
@@ -1665,6 +1700,10 @@ export default function PrintableReport({
                                     const matchedFrame =
                                         normalizedHeatmaps.find((frame) => frame.frame_idx === finding.frameIndex) ||
                                         normalizedHeatmaps.find((frame) => frame.id?.includes?.(`Frame-${finding.frameIndex}`));
+                                    const fallbackExplanation =
+                                        topFrameExplanations.find((item) => item.frameIndex === finding.frameIndex)?.description || "-";
+                                    const [fakeProbText = finding.probabilityText || "-", realProbText = ""] =
+                                        String(finding.probabilityText || "-").split(", ");
 
                                     return (
                                         <tr key={`ranked-finding-${index}`} style={{ background: index % 2 === 0 ? "#fff" : "#f8fafc" }}>
@@ -1687,10 +1726,13 @@ export default function PrintableReport({
                                                 Frame {finding.frameIndex}
                                             </td>
                                             <td style={{ ...S.td, fontSize: 10, lineHeight: 1.7 }}>
-                                                {finding.probabilityText || "-"}
+                                                <div>{fakeProbText}</div>
+                                                {realProbText ? (
+                                                    <div style={{ marginTop: 4, color: "#475569" }}>{realProbText}</div>
+                                                ) : null}
                                             </td>
                                             <td style={{ ...S.td, fontSize: 10, lineHeight: 1.7 }}>
-                                                {finding.analysisText || "-"}
+                                                {finding.analysisText || fallbackExplanation}
                                             </td>
                                         </tr>
                                     );
