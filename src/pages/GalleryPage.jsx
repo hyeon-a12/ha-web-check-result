@@ -154,7 +154,10 @@ function renderSummaryMarkdown(summaryText) {
         .filter(Boolean);
 
     return blocks.map((block, index) => {
-        const lines = block.split(/\r?\n/).map((line) => line.trim()).filter(Boolean);
+        const lines = block
+            .split(/\r?\n/)
+            .map((line) => line.trim().replace(/\*\*(.+?)\*\*/g, "$1"))
+            .filter(Boolean);
         if (lines.length === 0) return null;
 
         if (lines.every((line) => /^[-*]\s+/.test(line))) {
@@ -171,20 +174,11 @@ function renderSummaryMarkdown(summaryText) {
 
         const headingMatch = lines[0].match(/^#{1,3}\s+(.+)$/);
         if (headingMatch) {
+            if (lines.length === 1) {
+                return null;
+            }
             return (
                 <div key={`summary-block-${index}`} style={{ marginBottom: 16 }}>
-                    <h4
-                        style={{
-                            margin: "0 0 8px",
-                            fontSize: 20,
-                            lineHeight: 1.35,
-                            color: "#111827",
-                            fontWeight: 800,
-                            letterSpacing: "-0.02em",
-                        }}
-                    >
-                        {headingMatch[1]}
-                    </h4>
                     {lines.slice(1).map((line, paragraphIndex) => (
                         <p
                             key={`summary-paragraph-${index}-${paragraphIndex}`}
