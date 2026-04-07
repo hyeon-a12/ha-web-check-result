@@ -148,20 +148,16 @@ function getHeatmapGalleryData(frames) {
 function renderSummaryMarkdown(summaryText) {
     if (!summaryText) return null;
 
-    const lines = summaryText
+    const formattedText = summaryText
+        .replace(/\\n/g, "\n")
         .split(/\r?\n/)
-        .map((line) => line.replace(/\*\*(.+?)\*\*/g, "$1"));
-
-    const visibleLines = lines.filter((line, index) => {
-        if (index === 0 && /^#{1,3}\s+/.test(line.trim())) {
-            return false;
-        }
-        return true;
-    });
+        .map((line) => line.replace(/^#{1,6}\s+/, "").replace(/\*\*(.+?)\*\*/g, "$1"))
+        .join("\n")
+        .trim();
 
     return (
         <div style={{ whiteSpace: "pre-wrap" }}>
-            {visibleLines.join("\n").trim()}
+            {formattedText}
         </div>
     );
 }

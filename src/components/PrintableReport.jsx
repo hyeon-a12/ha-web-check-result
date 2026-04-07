@@ -245,7 +245,11 @@ function extractPdfFinalOpinion(markdownText) {
     const extracted = [];
 
     for (const rawLine of sectionLines) {
-        const line = rawLine.replace(/\*\*(.+?)\*\*/g, "$1").trimEnd();
+        const line = rawLine
+            .replace(/\\n/g, "\n")
+            .replace(/\*\*(.+?)\*\*/g, "$1")
+            .replace(/`([^`]+)`/g, "$1")
+            .trimEnd();
         if (!line.trim()) continue;
         if (stopPattern.test(line.trim())) break;
         extracted.push(line);
@@ -276,6 +280,31 @@ function sanitizePdfOpinionText(text) {
             return true;
         })
         .join("\n")
+        .trim();
+}
+
+// eslint-disable-next-line no-unused-vars
+function sanitizeAiSummaryForPdf(text) {
+    if (!text) return "";
+
+    return text
+        .split(/\r?\n/)
+        .map((line) => line.replace(/^#{1,6}\s+/, "").replace(/\*\*(.+?)\*\*/g, "$1").trim())
+        .filter(Boolean)
+        .join("\n")
+        .trim();
+}
+
+function normalizeForensicSectionText(markdownText, sectionNumber) {
+    return extractSectionLinesSafe(markdownText, sectionNumber)
+        .join("\n")
+        .replace(/\r/g, "")
+        .replace(/\\n/g, "\n")
+        .replace(/\*\*/g, "")
+        .replace(/`([^`]+)`/g, "$1")
+        .replace(/\n\s*\*\s*\n/g, "\n")
+        .replace(/\n\s*\*\s*/g, "\n")
+        .replace(/[ \t]+\n/g, "\n")
         .trim();
 }
 
@@ -542,15 +571,9 @@ function buildTopFrameExplanations(summaryFrames, forensicFrameFindings, normali
     });
 }
 
+// eslint-disable-next-line no-unused-vars
 function parseRankedFrameAnalysisV5(markdownText) {
-    const normalizedText = extractSectionLinesSafe(markdownText, 2)
-        .join("\n")
-        .replace(/\r/g, "")
-        .replace(/\*\*/g, "")
-        .replace(/`([^`]+)`/g, "$1")
-        .replace(/\n\s*\*\s*\n/g, "\n")
-        .replace(/\n\s*\*\s*/g, "\n")
-        .trim();
+    const normalizedText = normalizeForensicSectionText(markdownText, 2);
 
     const frameStartRegex = /(?:^|\n)\s*(?:[*-]\s*)?(?:프레임|frame)?\s*(\d+)\s*\(rank\s*(\d+)\)\s*:/gi;
     const matches = Array.from(normalizedText.matchAll(frameStartRegex));
@@ -563,6 +586,32 @@ function parseRankedFrameAnalysisV5(markdownText) {
         const markerMatch = block.match(/(?:이미지\s*분석|image\s*analysis|analysis)\s*:/i);
         const descriptionText = markerMatch && markerMatch.index != null
             ? block.slice(markerMatch.index + markerMatch[0].length).replace(/\s+/g, " ").trim()
+            : "";
+
+        return {
+            frameIndex: Number(match[1]),
+            rank: Number(match[2]),
+            probabilityText: probabilityMatch
+                ? `fake_prob: ${probabilityMatch[1]}%, real_prob: ${probabilityMatch[2]}%`
+                : "-",
+            analysisText: descriptionText,
+        };
+    }).filter((item) => item.frameIndex > 0);
+}
+
+function parseRankedFrameAnalysisV6(markdownText) {
+    const normalizedText = normalizeForensicSectionText(markdownText, 2);
+    const frameStartRegex = /(?:^|\n)\s*(?:[*-]\s*)?(?:\S+\s*)?(\d+)\s*\(rank\s*(\d+)\)\s*:/gi;
+    const matches = Array.from(normalizedText.matchAll(frameStartRegex));
+
+    return matches.map((match, index) => {
+        const start = match.index ?? 0;
+        const end = index + 1 < matches.length ? (matches[index + 1].index ?? normalizedText.length) : normalizedText.length;
+        const block = normalizedText.slice(start, end).trim();
+        const probabilityMatch = block.match(/fake_prob:\s*(\d+(?:\.\d+)?)%,\s*real_prob:\s*(\d+(?:\.\d+)?)%/i);
+        const markerIndex = block.search(/(?:분석|analysis)\s*:/i);
+        const descriptionText = markerIndex >= 0
+            ? block.slice(markerIndex).replace(/^(?:[^:]+):\s*/i, "").replace(/\s+/g, " ").trim()
             : "";
 
         return {
@@ -743,8 +792,10 @@ export default function PrintableReport({
     );
     // 마크다운 forensic 의견을 PDF 표시용 구조로 변환한다.
     const heatmapChunks = chunkArray(normalizedHeatmaps, 6);
-    const finalOpinion = sanitizePdfOpinionText(extractPdfFinalOpinion(forensicOpinion)) || " ";
-    const forensicFrameFindings = parseRankedFrameAnalysisV5(forensicOpinion);
+    const finalOpinion =
+        sanitizePdfOpinionText(extractPdfFinalOpinion(forensicOpinion)) ||
+        " ";
+    const forensicFrameFindings = parseRankedFrameAnalysisV6(forensicOpinion);
     const technicalRiskAssessments = parseTechnicalRiskAssessmentsSafe(forensicOpinion);
     const technicalRiskIntro = extractTechnicalRiskIntroSafe(forensicOpinion);
     const frameAnalysisIntro = extractFrameAnalysisIntroV4(forensicOpinion);
@@ -760,6 +811,14 @@ export default function PrintableReport({
         forensicFrameFindings,
         normalizedHeatmaps
     );
+    const displayFrameFindings = forensicFrameFindings.length > 0
+        ? forensicFrameFindings
+        : topFrameExplanations.map((item) => ({
+            frameIndex: item.frameIndex,
+            rank: item.rank,
+            probabilityText: item.probabilityText,
+            analysisText: item.description,
+        }));
     const totalPdfPages = 2 + heatmapChunks.length + (comparisonNotes.length > 0 ? 1 : 0);
 
     // 인쇄 안정성을 위해 CSS 파일 의존 대신 inline style 시스템을 사용한다.
@@ -1684,7 +1743,7 @@ export default function PrintableReport({
                         </div>
                     )}
 
-                    {forensicFrameFindings.length > 0 && (
+                    {displayFrameFindings.length > 0 && (
                         <table style={S.findingTable}>
                             <thead>
                                 <tr>
@@ -1696,7 +1755,7 @@ export default function PrintableReport({
                                 </tr>
                             </thead>
                             <tbody>
-                                {forensicFrameFindings.map((finding, index) => {
+                                {displayFrameFindings.map((finding, index) => {
                                     const matchedFrame =
                                         normalizedHeatmaps.find((frame) => frame.frame_idx === finding.frameIndex) ||
                                         normalizedHeatmaps.find((frame) => frame.id?.includes?.(`Frame-${finding.frameIndex}`));
