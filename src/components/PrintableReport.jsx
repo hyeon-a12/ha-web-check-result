@@ -204,9 +204,9 @@ function extractSectionLinesSafe(markdownText, sectionNumber) {
     // 모델 응답 포맷이 조금 달라도 section 번호 기반으로 최대한 복원한다.
     if (!markdownText) return [];
 
-    const headingPattern = /^###\s+\d+\s*\./;
+    const headingPattern = /^(?:###\s+\d+\s*\.|\*{0,2}\s*\d+\.\s.*\*{0,2})/;
     const lines = markdownText.split(/\r?\n/);
-    const sectionPattern = new RegExp(`^###\\s*${sectionNumber}\\s*\\.`, "i");
+    const sectionPattern = new RegExp(`^(?:###\\s*${sectionNumber}\\s*\\.|\\*{0,2}\\s*${sectionNumber}\\.\\s.*\\*{0,2})`, "i");
     const startIndex = lines.findIndex((line) => sectionPattern.test(normalizeMarkdownLineSafe(line)));
 
     if (startIndex === -1) {
