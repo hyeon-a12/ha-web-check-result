@@ -427,6 +427,7 @@ function parseRankedFrameAnalysisSafe(markdownText) {
         .filter(Boolean);
 }
 
+// eslint-disable-next-line no-unused-vars
 function extractFrameAnalysisIntroV2(markdownText) {
     const sectionText = extractSectionLinesSafe(markdownText, 2)
         .map((line) => line.replace(/\*\*(.+?)\*\*/g, "$1").trim())
@@ -442,6 +443,7 @@ function extractFrameAnalysisIntroV2(markdownText) {
     return introLines.join(" ").trim();
 }
 
+// eslint-disable-next-line no-unused-vars
 function parseRankedFrameAnalysisV2(markdownText) {
     const normalizedText = extractSectionLinesSafe(markdownText, 2)
         .map((line) => line.replace(/\*\*(.+?)\*\*/g, "$1"))
@@ -472,6 +474,49 @@ function parseRankedFrameAnalysisV2(markdownText) {
             };
         })
         .filter(Boolean);
+}
+
+function extractFrameAnalysisIntroV3(markdownText) {
+    const sectionText = extractSectionLinesSafe(markdownText, 2)
+        .map((line) => line.replace(/\*\*(.+?)\*\*/g, "$1").trim())
+        .filter(Boolean);
+
+    const introLines = [];
+    for (const line of sectionText) {
+        if (/(?:프레임|frame)\s+\d+\s*\(rank/i.test(line)) break;
+        if (line === "*") continue;
+        introLines.push(line);
+    }
+
+    return introLines.join(" ").trim();
+}
+
+function parseRankedFrameAnalysisV3(markdownText) {
+    const sectionText = extractSectionLinesSafe(markdownText, 2)
+        .map((line) => line.replace(/\*\*(.+?)\*\*/g, "$1"))
+        .join("\n");
+
+    const blocks = sectionText
+        .split(/\n\s*\*\s*/)
+        .map((block) => block.trim())
+        .filter((block) => /(?:프레임|frame)\s+\d+\s*\(rank/i.test(block));
+
+    return blocks.map((block) => {
+        const frameMatch = block.match(/(?:프레임|frame)\s+(\d+)\s*\(rank\s*(\d+)\)/i);
+        const probabilityMatch = block.match(/fake_prob:\s*(\d+(?:\.\d+)?)%,\s*real_prob:\s*(\d+(?:\.\d+)?)%/i);
+        const descriptionMatch = block.match(/(?:이미지 분석|image analysis):\s*([\s\S]*)/i);
+
+        return {
+            frameIndex: frameMatch ? Number(frameMatch[1]) : 0,
+            rank: frameMatch ? Number(frameMatch[2]) : 0,
+            probabilityText: probabilityMatch
+                ? `fake_prob: ${probabilityMatch[1]}%, real_prob: ${probabilityMatch[2]}%`
+                : "-",
+            analysisText: descriptionMatch
+                ? descriptionMatch[1].replace(/\s+/g, " ").trim()
+                : "",
+        };
+    }).filter((item) => item.frameIndex > 0);
 }
 
 function buildTopFrameExplanations(summaryFrames, forensicFrameFindings, normalizedHeatmaps) {
@@ -595,10 +640,10 @@ export default function PrintableReport({
     // 마크다운 forensic 의견을 PDF 표시용 구조로 변환한다.
     const heatmapChunks = chunkArray(normalizedHeatmaps, 6);
     const finalOpinion = sanitizePdfOpinionText(extractPdfFinalOpinion(forensicOpinion)) || " ";
-    const forensicFrameFindings = parseRankedFrameAnalysisV2(forensicOpinion);
+    const forensicFrameFindings = parseRankedFrameAnalysisV3(forensicOpinion);
     const technicalRiskAssessments = parseTechnicalRiskAssessmentsSafe(forensicOpinion);
     const technicalRiskIntro = extractTechnicalRiskIntroSafe(forensicOpinion);
-    const frameAnalysisIntro = extractFrameAnalysisIntroV2(forensicOpinion);
+    const frameAnalysisIntro = extractFrameAnalysisIntroV3(forensicOpinion);
     const detailItems = technicalRiskAssessments.length > 0
         ? technicalRiskAssessments
         : publicItems.map((item) => ({
