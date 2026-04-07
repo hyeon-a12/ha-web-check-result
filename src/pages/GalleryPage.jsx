@@ -145,6 +145,69 @@ function getHeatmapGalleryData(frames) {
     return { featured, remaining };
 }
 
+function renderSummaryMarkdown(summaryText) {
+    if (!summaryText) return null;
+
+    const blocks = summaryText
+        .split(/\n\s*\n/)
+        .map((block) => block.trim())
+        .filter(Boolean);
+
+    return blocks.map((block, index) => {
+        const lines = block.split(/\r?\n/).map((line) => line.trim()).filter(Boolean);
+        if (lines.length === 0) return null;
+
+        if (lines.every((line) => /^[-*]\s+/.test(line))) {
+            return (
+                <ul key={`summary-block-${index}`} style={{ margin: "0 0 14px", paddingLeft: 20, color: "#374151" }}>
+                    {lines.map((line, itemIndex) => (
+                        <li key={`summary-item-${index}-${itemIndex}`} style={{ marginBottom: 6, lineHeight: 1.8 }}>
+                            {line.replace(/^[-*]\s+/, "")}
+                        </li>
+                    ))}
+                </ul>
+            );
+        }
+
+        const headingMatch = lines[0].match(/^#{1,3}\s+(.+)$/);
+        if (headingMatch) {
+            return (
+                <div key={`summary-block-${index}`} style={{ marginBottom: 16 }}>
+                    <h4
+                        style={{
+                            margin: "0 0 8px",
+                            fontSize: 20,
+                            lineHeight: 1.35,
+                            color: "#111827",
+                            fontWeight: 800,
+                            letterSpacing: "-0.02em",
+                        }}
+                    >
+                        {headingMatch[1]}
+                    </h4>
+                    {lines.slice(1).map((line, paragraphIndex) => (
+                        <p
+                            key={`summary-paragraph-${index}-${paragraphIndex}`}
+                            style={{ margin: "0 0 10px", color: "#374151", lineHeight: 1.85 }}
+                        >
+                            {line}
+                        </p>
+                    ))}
+                </div>
+            );
+        }
+
+        return (
+            <p
+                key={`summary-block-${index}`}
+                style={{ margin: "0 0 14px", color: "#374151", lineHeight: 1.85 }}
+            >
+                {lines.join(" ")}
+            </p>
+        );
+    });
+}
+
 // ─── PDF 진행률 시뮬레이터 ────────────────────────────────────
 // html2canvas / jsPDF 는 진행 콜백이 없으므로
 // easeOutCubic 곡선으로 92%까지 부드럽게 올라가는 시뮬레이션을 씁니다.
@@ -1866,10 +1929,9 @@ export default function GalleryPage() {
                                     color: "#374151",
                                     fontSize: 15,
                                     lineHeight: 1.8,
-                                    whiteSpace: "pre-wrap",
                                 }}
                             >
-                                {analysisData.ai_summary}
+                                {renderSummaryMarkdown(analysisData.ai_summary)}
                             </div>
                         </div>
                     )}
