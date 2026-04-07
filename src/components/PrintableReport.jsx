@@ -264,6 +264,25 @@ function extractPdfFinalOpinion(markdownText) {
         .trim();
 }
 
+function sanitizePdfOpinionText(text) {
+    if (!text) return "";
+
+    return text
+        .split(/\r?\n/)
+        .map((line) => line.trim())
+        .filter((line) => {
+            if (!line) return false;
+            if (/^[[{]/.test(line)) return false;
+            if (/^(?:[\]}"',\s]+)$/.test(line)) return false;
+            if (/(analysis_id|filename|final_prediction|overall_confidence_percent|process_time_seconds|timeline_chart|detailed_analysis|decisive_frames|other_frames)/i.test(line)) {
+                return false;
+            }
+            return true;
+        })
+        .join("\n")
+        .trim();
+}
+
 function parseForensicFrameFindingsSafe(markdownText) {
     // 다양한 마크다운 표기(굵게/하이픈/콜론 유무)를 허용하는 안전 파서.
     const lines = extractSectionLinesSafe(markdownText, 2);
@@ -485,7 +504,7 @@ export default function PrintableReport({
     );
     // 마크다운 forensic 의견을 PDF 표시용 구조로 변환한다.
     const heatmapChunks = chunkArray(normalizedHeatmaps, 6);
-    const finalOpinion = extractPdfFinalOpinion(forensicOpinion) || " ";
+    const finalOpinion = sanitizePdfOpinionText(extractPdfFinalOpinion(forensicOpinion)) || " ";
     const forensicFrameFindings = parseForensicFrameFindingsSafe(forensicOpinion);
     const technicalRiskAssessments = parseTechnicalRiskAssessmentsSafe(forensicOpinion);
     const technicalRiskIntro = extractTechnicalRiskIntroSafe(forensicOpinion);
