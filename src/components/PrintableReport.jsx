@@ -236,11 +236,7 @@ function extractFinalOpinionSafe(markdownText) {
         return extracted;
     }
 
-    return markdownText
-        .replace(/^###+\s.*$/gm, "")
-        .replace(/^---$/gm, "")
-        .replace(/\*\*(.+?)\*\*/g, "$1")
-        .trim();
+    return "";
 }
 
 function extractPdfFinalOpinion(markdownText) {
@@ -283,6 +279,7 @@ function sanitizePdfOpinionText(text) {
         .trim();
 }
 
+// eslint-disable-next-line no-unused-vars
 function parseForensicFrameFindingsSafe(markdownText) {
     // 다양한 마크다운 표기(굵게/하이픈/콜론 유무)를 허용하는 안전 파서.
     const lines = extractSectionLinesSafe(markdownText, 2);
@@ -382,6 +379,50 @@ function parseTechnicalRiskAssessmentsSafe(markdownText) {
     });
 
     return assessments;
+}
+
+function extractFrameAnalysisIntroSafe(markdownText) {
+    const sectionText = extractSectionLinesSafe(markdownText, 2)
+        .map((line) => line.replace(/\*\*(.+?)\*\*/g, "$1").trim())
+        .filter(Boolean);
+
+    const introLines = [];
+    for (const line of sectionText) {
+        if (/프레임\s+\d+\s*\(rank/i.test(line)) break;
+        if (line === "*") continue;
+        introLines.push(line);
+    }
+
+    return introLines.join(" ").trim();
+}
+
+function parseRankedFrameAnalysisSafe(markdownText) {
+    const normalizedText = extractSectionLinesSafe(markdownText, 2)
+        .map((line) => line.replace(/\*\*(.+?)\*\*/g, "$1"))
+        .join("\n");
+
+    const frameBlocks = normalizedText.split(/\n\s*\*\s*/).map((block) => block.trim()).filter(Boolean);
+
+    return frameBlocks
+        .map((block) => {
+            const frameMatch = block.match(/프레임\s+(\d+)\s*\(rank\s*(\d+)\)/i);
+            if (!frameMatch) return null;
+
+            const probabilityMatch = block.match(/fake_prob:\s*(\d+(?:\.\d+)?)%,\s*real_prob:\s*(\d+(?:\.\d+)?)%/i);
+            const descriptionMatch = block.match(/이미지 분석:\s*([\s\S]*)/i);
+
+            return {
+                frameIndex: Number(frameMatch[1]),
+                rank: Number(frameMatch[2]),
+                probabilityText: probabilityMatch
+                    ? `fake_prob: ${probabilityMatch[1]}%, real_prob: ${probabilityMatch[2]}%`
+                    : "-",
+                analysisText: descriptionMatch
+                    ? descriptionMatch[1].replace(/\s+/g, " ").trim()
+                    : "",
+            };
+        })
+        .filter(Boolean);
 }
 
 function buildTopFrameExplanations(summaryFrames, forensicFrameFindings, normalizedHeatmaps) {
@@ -505,9 +546,10 @@ export default function PrintableReport({
     // 마크다운 forensic 의견을 PDF 표시용 구조로 변환한다.
     const heatmapChunks = chunkArray(normalizedHeatmaps, 6);
     const finalOpinion = sanitizePdfOpinionText(extractPdfFinalOpinion(forensicOpinion)) || " ";
-    const forensicFrameFindings = parseForensicFrameFindingsSafe(forensicOpinion);
+    const forensicFrameFindings = parseRankedFrameAnalysisSafe(forensicOpinion);
     const technicalRiskAssessments = parseTechnicalRiskAssessmentsSafe(forensicOpinion);
     const technicalRiskIntro = extractTechnicalRiskIntroSafe(forensicOpinion);
+    const frameAnalysisIntro = extractFrameAnalysisIntroSafe(forensicOpinion);
     const detailItems = technicalRiskAssessments.length > 0
         ? technicalRiskAssessments
         : publicItems.map((item) => ({
@@ -1435,7 +1477,63 @@ export default function PrintableReport({
                         ))}
                     </div>
 
+                    {frameAnalysisIntro && (
+                        <div style={{ fontSize: 10, color: "#475569", lineHeight: 1.7, marginTop: 10, marginBottom: 10 }}>
+                            {frameAnalysisIntro}
+                        </div>
+                    )}
+
                     {forensicFrameFindings.length > 0 && (
+                        <table style={S.findingTable}>
+                            <thead>
+                                <tr>
+                                    <th style={{ ...S.th, width: "96px" }}>프레임 이미지</th>
+                                    <th style={{ ...S.th, width: "64px" }}>순위</th>
+                                    <th style={{ ...S.th, width: "92px" }}>프레임</th>
+                                    <th style={{ ...S.th, width: "180px" }}>위조 확률</th>
+                                    <th style={S.th}>설명</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {forensicFrameFindings.map((finding, index) => {
+                                    const matchedFrame =
+                                        normalizedHeatmaps.find((frame) => frame.frame_idx === finding.frameIndex) ||
+                                        normalizedHeatmaps.find((frame) => frame.id?.includes?.(`Frame-${finding.frameIndex}`));
+
+                                    return (
+                                        <tr key={`ranked-finding-${index}`} style={{ background: index % 2 === 0 ? "#fff" : "#f8fafc" }}>
+                                            <td style={S.td}>
+                                                {matchedFrame?.image ? (
+                                                    <img
+                                                        src={matchedFrame.image}
+                                                        alt={`finding-${finding.frameIndex}`}
+                                                        style={S.findingThumb}
+                                                        crossOrigin="anonymous"
+                                                    />
+                                                ) : (
+                                                    <div style={S.findingEmpty}>이미지 없음</div>
+                                                )}
+                                            </td>
+                                            <td style={{ ...S.td, textAlign: "center", fontSize: 10, fontWeight: 800 }}>
+                                                {finding.rank || index + 1}
+                                            </td>
+                                            <td style={{ ...S.td, fontSize: 10, fontWeight: 800, color: "#dc2626" }}>
+                                                Frame {finding.frameIndex}
+                                            </td>
+                                            <td style={{ ...S.td, fontSize: 10, lineHeight: 1.7 }}>
+                                                {finding.probabilityText || "-"}
+                                            </td>
+                                            <td style={{ ...S.td, fontSize: 10, lineHeight: 1.7 }}>
+                                                {finding.analysisText || "-"}
+                                            </td>
+                                        </tr>
+                                    );
+                                })}
+                            </tbody>
+                        </table>
+                    )}
+
+                    {false && forensicFrameFindings.length > 0 && (
                         // forensicOpinion에서 파싱한 프레임 근거를 heatmap 이미지와 매칭해 표로 출력
                         <table style={S.findingTable}>
                             <thead>
@@ -1483,7 +1581,7 @@ export default function PrintableReport({
                         </table>
                     )}
 
-                    {topFrameExplanations.length > 0 && (
+                    {false && topFrameExplanations.length > 0 && (
                         <table style={S.findingTable}>
                             <thead>
                                 <tr>
