@@ -1637,7 +1637,7 @@ export default function PrintableReport({
                         세부 분석 항목 <span style={S.sectionEn}>Major Analysis Items</span>
                     </div>
 
-                    {technicalRiskIntro && (
+                    {false && technicalRiskIntro && (
                         <div style={{ fontSize: 10, color: "#64748b", lineHeight: 1.6, marginBottom: 8 }}>
                             {technicalRiskIntro}
                         </div>
@@ -1752,7 +1752,7 @@ export default function PrintableReport({
                     </div>
                     )}
 
-                    {frameAnalysisIntro && (
+                    {false && frameAnalysisIntro && (
                         <div style={{ fontSize: 10, color: "#475569", lineHeight: 1.7, marginTop: 10, marginBottom: 10 }}>
                             {frameAnalysisIntro}
                         </div>

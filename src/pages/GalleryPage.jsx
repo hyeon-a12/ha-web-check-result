@@ -1638,7 +1638,7 @@ export default function GalleryPage() {
                         <div className="card video-card">
                             <div className="card-head">
                                 <h3 title={displayTitle}>{displayTitle}</h3>
-                                <span className="badge warn">주의 필요</span>
+                                //<span className="badge warn">주의 필요</span>
                             </div>
                             <div className="video-preview">
                                 {videoId ? (
