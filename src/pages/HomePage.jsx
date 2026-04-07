@@ -80,6 +80,8 @@ export default function HomePage() {
                 analysisStartedAt: analysisStartedAtRef.current,
                 previewSrc,
                 previewKind,
+                sourceType: tab,
+                sourceUrl: tab === "url" ? urlValue.trim() : "",
                 videoId: tab === "url" ? urlMeta?.videoId || "" : "",
                 displayTitle:
                     tab === "file"

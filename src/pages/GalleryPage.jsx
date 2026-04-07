@@ -1137,6 +1137,8 @@ export default function GalleryPage() {
     const location = useLocation();
     const [analysisData, setAnalysisData] = useState(() => normalizeAnalysisData(location.state?.analysis));
     const previewSrc = location.state?.previewSrc || "";
+    const sourceType = location.state?.sourceType || "";
+    const sourceUrl = location.state?.sourceUrl || "";
     const videoId = location.state?.videoId || "";
     const displayTitle = location.state?.displayTitle || analysisData.filename || "분석 영상";
     const isPro = false;
@@ -1187,8 +1189,11 @@ export default function GalleryPage() {
         () => ({
             ...analysisData,
             filename: displayTitle || analysisData.filename,
+            sourceType,
+            sourceUrl,
+            videoId,
         }),
-        [analysisData, displayTitle]
+        [analysisData, displayTitle, sourceType, sourceUrl, videoId]
     );
 
     useEffect(() => {

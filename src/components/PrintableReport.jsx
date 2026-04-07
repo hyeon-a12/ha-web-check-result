@@ -754,6 +754,52 @@ function buildDisplayHeatmapFrames(analysisData, externalHeatmaps = []) {
     });
 }
 
+function parseDurationToSeconds(durationText) {
+    if (!durationText || typeof durationText !== "string") return null;
+
+    const normalized = durationText.trim();
+    if (!normalized) return null;
+
+    const colonParts = normalized.split(":").map((part) => Number(part.trim()));
+    if (colonParts.length >= 2 && colonParts.every((part) => Number.isFinite(part))) {
+        return colonParts.reduce((total, part) => (total * 60) + part, 0);
+    }
+
+    let seconds = 0;
+    const hourMatch = normalized.match(/(\d+(?:\.\d+)?)\s*(?:h|hr|hour|hours|시간)/i);
+    const minuteMatch = normalized.match(/(\d+(?:\.\d+)?)\s*(?:m|min|minute|minutes|분)/i);
+    const secondMatch = normalized.match(/(\d+(?:\.\d+)?)\s*(?:s|sec|second|seconds|초)/i);
+
+    if (hourMatch) seconds += Number(hourMatch[1]) * 3600;
+    if (minuteMatch) seconds += Number(minuteMatch[1]) * 60;
+    if (secondMatch) seconds += Number(secondMatch[1]);
+
+    return seconds > 0 ? seconds : null;
+}
+
+function getPdfFileFormatDisplay(analysisData, fallbackExt) {
+    const sourceUrl = analysisData.sourceUrl || "";
+    const durationSeconds = parseDurationToSeconds(analysisData.video_duration || "");
+    const isYoutubeSource =
+        analysisData.sourceType === "url" ||
+        Boolean(analysisData.videoId) ||
+        /(?:youtube\.com|youtu\.be)/i.test(sourceUrl);
+    const isYoutubeShorts = /youtube\.com\/shorts\//i.test(sourceUrl);
+    const isShortVideo = durationSeconds != null && durationSeconds <= 60;
+
+    if (isYoutubeSource && (isYoutubeShorts || isShortVideo)) {
+        return {
+            value: "MP4(MPEG-4)",
+            compact: true,
+        };
+    }
+
+    return {
+        value: `.${fallbackExt.toUpperCase()}`,
+        compact: false,
+    };
+}
+
 export default function PrintableReport({
     analysisData,
     inlineFrameStats,
@@ -775,6 +821,7 @@ export default function PrintableReport({
     const totalFrames = timelineChart.length;
 
     const fileExt = analysisData.filename?.split(".").pop()?.toLowerCase() || "mp4";
+    const fileFormatDisplay = getPdfFileFormatDisplay(analysisData, fileExt);
     // 백엔드 응답에 모델 목록이 없을 때를 대비해 기본 모델명을 사용한다.
     const modelNames = analysisData.model_names ?? [
         "Vision Transformer",
@@ -1241,6 +1288,11 @@ export default function PrintableReport({
             fontWeight: 800,
             color: "#0f172a",
         },
+        metaCardValueCompact: {
+            fontSize: 5,
+            fontWeight: 800,
+            color: "#0f172a",
+        },
     };
 
     return (
@@ -1299,6 +1351,9 @@ export default function PrintableReport({
                     ].map((item, i) => {
                         const isLastCol = (i + 1) % 4 === 0;
                         const isLastRow = i >= 4;
+                        const isFileFormatItem = item.value === `.${fileExt.toUpperCase()}`;
+                        const renderedValue = isFileFormatItem ? fileFormatDisplay.value : item.value;
+                        const valueStyle = isFileFormatItem ? S.metaCardValueCompact : S.metaCardValue;
 
                         return (
                             <div
@@ -1310,7 +1365,7 @@ export default function PrintableReport({
                                 }}
                             >
                                 <div style={S.metaCardLabel}>{item.label}</div>
-                                <div style={S.metaCardValue}>{item.value}</div>
+                                <div style={valueStyle}>{renderedValue}</div>
                             </div>
                         );
                     })}
