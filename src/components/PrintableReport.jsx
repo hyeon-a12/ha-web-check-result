@@ -625,6 +625,7 @@ function parseRankedFrameAnalysisV6(markdownText) {
     }).filter((item) => item.frameIndex > 0);
 }
 
+// eslint-disable-next-line no-unused-vars
 function extractFrameAnalysisIntroV4(markdownText) {
     const sectionText = extractSectionLinesSafe(markdownText, 2)
         .map((line) =>
@@ -643,6 +644,20 @@ function extractFrameAnalysisIntroV4(markdownText) {
     }
 
     return introLines.join(" ").trim();
+}
+
+function extractFrameAnalysisIntroV5(markdownText) {
+    const normalizedText = normalizeForensicSectionText(markdownText, 2);
+    const firstFrameIndex = normalizedText.search(/(?:^|\n)\s*(?:[*-]\s*)?(?:프레임|frame)?\s*\d+\s*\(rank\s*\d+\)\s*:/i);
+
+    if (firstFrameIndex < 0) {
+        return normalizedText;
+    }
+
+    return normalizedText
+        .slice(0, firstFrameIndex)
+        .replace(/\s+/g, " ")
+        .trim();
 }
 
 // eslint-disable-next-line no-unused-vars
@@ -798,7 +813,7 @@ export default function PrintableReport({
     const forensicFrameFindings = parseRankedFrameAnalysisV6(forensicOpinion);
     const technicalRiskAssessments = parseTechnicalRiskAssessmentsSafe(forensicOpinion);
     const technicalRiskIntro = extractTechnicalRiskIntroSafe(forensicOpinion);
-    const frameAnalysisIntro = extractFrameAnalysisIntroV4(forensicOpinion);
+    const frameAnalysisIntro = extractFrameAnalysisIntroV5(forensicOpinion);
     const frameAnalysisClosing = extractFrameAnalysisClosingV4(forensicOpinion);
     const detailItems = technicalRiskAssessments.length > 0
         ? technicalRiskAssessments
