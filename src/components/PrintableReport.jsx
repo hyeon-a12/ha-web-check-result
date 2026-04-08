@@ -1294,11 +1294,6 @@ export default function PrintableReport({
             fontWeight: 800,
             color: "#0f172a",
         },
-        metaCardValueCompact: {
-            fontSize: 5,
-            fontWeight: 800,
-            color: "#0f172a",
-        },
     };
 
     return (
@@ -1359,7 +1354,6 @@ export default function PrintableReport({
                         const isLastRow = i >= 4;
                         const isFileFormatItem = item.value === `.${fileExt.toUpperCase()}`;
                         const renderedValue = isFileFormatItem ? fileFormatDisplay.value : item.value;
-                        const valueStyle = isFileFormatItem ? S.metaCardValueCompact : S.metaCardValue;
 
                         return (
                             <div
@@ -1371,7 +1365,7 @@ export default function PrintableReport({
                                 }}
                             >
                                 <div style={S.metaCardLabel}>{item.label}</div>
-                                <div style={valueStyle}>{renderedValue}</div>
+                                <div style={S.metaCardValue}>{renderedValue}</div>
                             </div>
                         );
                     })}
@@ -1565,7 +1559,7 @@ export default function PrintableReport({
                                 파일 형식
                             </div>
                             <div style={{ fontSize: 20, fontWeight: 900, color: "#1e3a8a" }}>
-                                .{fileExt.toUpperCase()}
+                                {fileFormatDisplay.value}
                             </div>
                             <div
                                 style={{
