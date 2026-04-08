@@ -765,10 +765,15 @@ function parseDurationToSeconds(durationText) {
         return colonParts.reduce((total, part) => (total * 60) + part, 0);
     }
 
+    const numericParts = normalized.match(/\d+(?:\.\d+)?/g);
+    if (numericParts?.length === 1 && Number.isFinite(Number(numericParts[0]))) {
+        return Number(numericParts[0]);
+    }
+
     let seconds = 0;
-    const hourMatch = normalized.match(/(\d+(?:\.\d+)?)\s*(?:h|hr|hour|hours|시간)/i);
-    const minuteMatch = normalized.match(/(\d+(?:\.\d+)?)\s*(?:m|min|minute|minutes|분)/i);
-    const secondMatch = normalized.match(/(\d+(?:\.\d+)?)\s*(?:s|sec|second|seconds|초)/i);
+    const hourMatch = normalized.match(/(\d+(?:\.\d+)?)\s*(?:h|hr|hour|hours)/i);
+    const minuteMatch = normalized.match(/(\d+(?:\.\d+)?)\s*(?:m|min|minute|minutes)/i);
+    const secondMatch = normalized.match(/(\d+(?:\.\d+)?)\s*(?:s|sec|second|seconds)/i);
 
     if (hourMatch) seconds += Number(hourMatch[1]) * 3600;
     if (minuteMatch) seconds += Number(minuteMatch[1]) * 60;
@@ -776,15 +781,17 @@ function parseDurationToSeconds(durationText) {
 
     return seconds > 0 ? seconds : null;
 }
-
 function getPdfFileFormatDisplay(analysisData, fallbackExt) {
     const sourceUrl = analysisData.sourceUrl || "";
     const durationSeconds = parseDurationToSeconds(analysisData.video_duration || "");
+    const titleText = analysisData.filename || "";
     const isYoutubeSource =
         analysisData.sourceType === "url" ||
         Boolean(analysisData.videoId) ||
         /(?:youtube\.com|youtu\.be)/i.test(sourceUrl);
-    const isYoutubeShorts = /youtube\.com\/shorts\//i.test(sourceUrl);
+    const isYoutubeShorts =
+        /(?:youtube\.com\/shorts\/|youtu\.be\/shorts\/|[?&]feature=shorts)/i.test(sourceUrl) ||
+        /#shorts|\bshorts\b/i.test(titleText);
     const isShortVideo = durationSeconds != null && durationSeconds <= 60;
 
     if (isYoutubeSource && (isYoutubeShorts || isShortVideo)) {
@@ -799,7 +806,6 @@ function getPdfFileFormatDisplay(analysisData, fallbackExt) {
         compact: false,
     };
 }
-
 export default function PrintableReport({
     analysisData,
     inlineFrameStats,
