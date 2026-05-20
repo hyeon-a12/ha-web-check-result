@@ -1,4 +1,4 @@
-// src/pages/HistoryPage.jsx
+﻿// src/pages/HistoryPage.jsx
 import React, { useMemo } from "react";
 
 export default function HistoryPage() {

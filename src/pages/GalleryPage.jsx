@@ -1,4 +1,4 @@
-// src/pages/Gallery.jsx
+﻿// src/pages/Gallery.jsx
 import React, { useMemo, useState, useEffect, useRef } from "react";
 import { flushSync } from "react-dom";
 import { useLocation, useNavigate } from "react-router-dom";

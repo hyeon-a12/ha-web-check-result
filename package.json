@@ -25,7 +25,13 @@
     "extends": [
       "react-app",
       "react-app/jest"
-    ]
+    ],
+    "rules": {
+      "unicode-bom": [
+        "error",
+        "always"
+      ]
+    }
   },
   "browserslist": {
     "production": [

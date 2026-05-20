@@ -1,4 +1,4 @@
-// src/pages/JoinPage.jsx
+﻿// src/pages/JoinPage.jsx
 import React, { useState } from "react";
 import { NavLink, useNavigate } from "react-router-dom";
 
