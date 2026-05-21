@@ -1804,7 +1804,7 @@ export default function GalleryPage() {
 
                         <div className="side-col">
                             <div className="card">
-                                <h4 className="mini-title">판별 정확도</h4>
+                                <h4 className="mini-title">판별 신뢰도</h4>
                                 <div className="trust">
                                     <div className="trust-num">{trustScore}%</div>
                                     <div className="trust-sub">이 분석 결과의 신뢰도</div>
