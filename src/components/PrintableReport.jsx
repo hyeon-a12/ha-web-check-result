@@ -1,4 +1,4 @@
-// PrintableReport.jsx
+﻿﻿// PrintableReport.jsx
 // 영상 위변조 분석 보고서 PDF 컴포넌트
 
 function PdfLineChart({ data }) {
