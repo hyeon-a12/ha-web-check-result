@@ -1665,18 +1665,18 @@ export default function GalleryPage() {
                     margin-top:10px;
                     padding:12px 14px;
                     border-radius:12px;
-                    background:#f8fafc;
-                    border:1px solid #e2e8f0;
-                    color:#475569;
-                    font-size:12px;
-                    line-height:1.7;
-                    white-space:pre-wrap;
+                    background:#eff6ff;
+                    border:1px solid #bfdbfe;
+                    color:#6b7280;
+                    font-size:13px;
+                    line-height:1.65;
                 }
                 .what-means b {
                     display:block;
                     margin-bottom:4px;
-                    color:#0f172a;
-                    font-size:12px;
+                    color:#111827;
+                    font-size:13px;
+                    font-weight:700;
                 }
                 @media (max-width: 900px) {
                     .condition-grid {
