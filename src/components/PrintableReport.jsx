@@ -245,7 +245,6 @@ export default function PrintableReport({
     const timelineChart = analysisData.timeline_chart ?? [];
     const totalFrames = timelineChart.length;
 
-    const fileExt = analysisData.filename?.split(".").pop()?.toLowerCase() || "mp4";
     const modelNames = analysisData.model_names ?? [
         "Vision Transformer",
         "ResNet-50",
@@ -465,6 +464,8 @@ export default function PrintableReport({
             display: "grid",
             gridTemplateColumns: "repeat(3, 1fr)",
             gap: 8,
+            width: "80%",
+            margin: "0 auto",
         },
         hmLegend: {
             border: "1px solid #e2e8f0",
@@ -530,14 +531,14 @@ export default function PrintableReport({
         },
         hmImg: {
             width: "100%",
-            height: 423,
+            height: 338,
             objectFit: "cover",
             display: "block",
             background: "#e2e8f0",
         },
         hmEmpty: {
             width: "100%",
-            height: 423,
+            height: 338,
             background: "#f8fafc",
             display: "flex",
             alignItems: "center",
@@ -729,7 +730,7 @@ export default function PrintableReport({
                         { label: "프레임 레이트", value: analysisData.frame_rate || "30fps" },
                         { label: "파일 크기", value: analysisData.file_size || "245MB" },
                         { label: "총 프레임 수", value: `${totalFrames}프레임` },
-                        { label: "파일 형식", value: `.${fileExt.toUpperCase()}` },
+                        { label: "파일 형식", value: "MP4" },
                         { label: "판별 모델 수", value: `${modelNames.length}개` },
                         { label: "분석 시간", value: analysisData.analysis_time || "14.2초" },
                     ].map((item, i) => {
@@ -938,7 +939,7 @@ export default function PrintableReport({
                                 파일 형식
                             </div>
                             <div style={{ fontSize: 20, fontWeight: 900, color: "#1e3a8a" }}>
-                                .{fileExt.toUpperCase()}
+                                MP4
                             </div>
                             <div
                                 style={{

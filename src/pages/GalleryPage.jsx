@@ -207,7 +207,7 @@ function simulatePdfProgress(setter, totalMs = 9000) {
     return id;
 }
 
-function normalizeAnalysisData(rawAnalysis) {
+function normalizeAnalysisData(rawAnalysis, selectedModel = "") {
     if (!rawAnalysis) {
         return MOCK_ANALYSIS;
     }
@@ -257,6 +257,8 @@ function normalizeAnalysisData(rawAnalysis) {
             ? rawAnalysis.model_names
             : rawAnalysis.model_used
                 ? [rawAnalysis.model_used]
+            : selectedModel
+                ? [selectedModel]
             : MOCK_ANALYSIS.model_names,
         video_duration: rawAnalysis.video_duration || rawAnalysis.duration || MOCK_ANALYSIS.video_duration,
         resolution: rawAnalysis.resolution || MOCK_ANALYSIS.resolution,
@@ -1144,7 +1146,8 @@ export default function GalleryPage() {
     const navigate = useNavigate();
     const location = useLocation();
     const hasInjectedAnalysis = Boolean(location.state?.analysis);
-    const [analysisData, setAnalysisData] = useState(() => normalizeAnalysisData(location.state?.analysis));
+    const selectedModel = location.state?.selectedModel || "";
+    const [analysisData, setAnalysisData] = useState(() => normalizeAnalysisData(location.state?.analysis, selectedModel));
     const previewSrc = location.state?.previewSrc || "";
     const sourceType = location.state?.sourceType || "";
     const sourceUrl = location.state?.sourceUrl || "";
@@ -1211,7 +1214,7 @@ export default function GalleryPage() {
     );
 
     useEffect(() => {
-        setAnalysisData(normalizeAnalysisData(location.state?.analysis));
+        setAnalysisData(normalizeAnalysisData(location.state?.analysis, location.state?.selectedModel || ""));
     }, [location.state]);
 
     useEffect(() => {
