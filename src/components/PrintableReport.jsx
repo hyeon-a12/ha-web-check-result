@@ -1086,7 +1086,7 @@ export default function PrintableReport({
                             </tr>
                         </thead>
                         <tbody>
-                            {!forensicData && publicItems.map((item, idx) => (
+                            {publicItems.map((item, idx) => (
                                 <tr key={idx} style={{ background: idx % 2 === 0 ? "#fff" : "#f8fafc" }}>
                                     <td style={{ ...S.td, fontWeight: 700 }}>{item.title}</td>
                                     <td style={{ ...S.td, textAlign: "center" }}>
