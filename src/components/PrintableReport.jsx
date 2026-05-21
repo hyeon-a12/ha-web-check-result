@@ -837,7 +837,7 @@ export default function PrintableReport({
                                     <thead>
                                         <tr>
                                             <th style={{ ...S.th, width: "28%" }}>판별 모델</th>
-                                            <th style={S.th}>위조 확률</th>
+                                            <th style={S.th}>평균 위조 확률</th>
                                             <th style={{ ...S.th, width: "80px", textAlign: "center" }}>위험도</th>
                                         </tr>
                                     </thead>
