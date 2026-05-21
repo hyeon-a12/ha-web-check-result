@@ -2088,7 +2088,6 @@ export default function GalleryPage() {
                         reportDate={reportDate}
                         displayHeatmapFrames={pdfHeatmapFrames.length > 0 ? pdfHeatmapFrames : displayHeatmapFrames}
                         forensicOpinion={forensicOpinion}
-                        comparisonNotes={pdfComparisonNotes}
                     />
                 </div>
             </div>

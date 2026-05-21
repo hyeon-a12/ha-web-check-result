@@ -1,8 +1,7 @@
-﻿// PrintableReport.jsx
+// PrintableReport.jsx
 // 영상 위변조 분석 보고서 PDF 컴포넌트
 
 function PdfLineChart({ data }) {
-    // PDF 렌더링 환경(고정 캔버스)에 맞춰 SVG 좌표를 직접 계산한다.
     const width = 660;
     const height = 160;
     const padL = 36, padR = 16, padT = 12, padB = 28;
@@ -114,7 +113,6 @@ function PdfLineChart({ data }) {
 }
 
 function MiniBar({ value, max = 100, color = "#1d4ed8", bgColor = "#e2e8f0" }) {
-    // 막대 길이는 max 기준 비율로 계산하고, 100%를 넘지 않게 clamp 처리한다.
     const pct = Math.min((value / max) * 100, 100);
 
     return (
@@ -153,7 +151,6 @@ function MiniBar({ value, max = 100, color = "#1d4ed8", bgColor = "#e2e8f0" }) {
 }
 
 function RiskBadge({ level }) {
-    // 한글/영문 위험도 입력을 모두 표준 키(HIGH/MEDIUM/LOW)로 정규화한다.
     const map = {
         HIGH: { bg: "#fef2f2", border: "#fecaca", color: "#dc2626", label: "높음" },
         MEDIUM: { bg: "#fffbeb", border: "#fde68a", color: "#d97706", label: "중간" },
@@ -187,7 +184,6 @@ function RiskBadge({ level }) {
 }
 
 function chunkArray(arr, size) {
-    // 긴 표/히트맵 목록을 페이지 단위로 잘라 PDF 레이아웃을 안정화한다.
     const result = [];
     for (let i = 0; i < arr.length; i += size) {
         result.push(arr.slice(i, i + size));
@@ -195,556 +191,16 @@ function chunkArray(arr, size) {
     return result;
 }
 
-function normalizeMarkdownLineSafe(line) {
-    // NBSP(\u00a0) 같은 특수 공백을 일반 공백으로 통일해 정규식 매칭 실패를 줄인다.
-    return line.replace(/\u00a0/g, " ").trim();
-}
-
-function extractSectionLinesSafe(markdownText, sectionNumber) {
-    // 모델 응답 포맷이 조금 달라도 section 번호 기반으로 최대한 복원한다.
-    if (!markdownText) return [];
-
-    const headingPattern = /^(?:###\s+\d+\s*\.|\*{0,2}\s*\d+\.\s.*\*{0,2})/;
-    const lines = markdownText.split(/\r?\n/);
-    const sectionPattern = new RegExp(`^(?:###\\s*${sectionNumber}\\s*\\.|\\*{0,2}\\s*${sectionNumber}\\.\\s.*\\*{0,2})`, "i");
-    const startIndex = lines.findIndex((line) => sectionPattern.test(normalizeMarkdownLineSafe(line)));
-
-    if (startIndex === -1) {
-        return [];
-    }
-
-    const collected = [];
-    for (let i = startIndex + 1; i < lines.length; i += 1) {
-        const trimmed = normalizeMarkdownLineSafe(lines[i]);
-        if (headingPattern.test(trimmed)) break;
-        if (trimmed === "---") continue;
-        collected.push(lines[i]);
-    }
-
-    return collected;
-}
-
-function extractFinalOpinionSafe(markdownText) {
-    // 우선 섹션 4를 정석대로 파싱하고, 실패하면 heading 제거 후 전체 텍스트를 fallback으로 사용.
-    const extracted = extractSectionLinesSafe(markdownText, 4)
-        .map((line) => line.replace(/\*\*(.+?)\*\*/g, "$1").trimEnd())
-        .filter((line) => line.trim())
-        .join("\n")
-        .trim();
-
-    if (extracted) {
-        return extracted;
-    }
-
-    return "";
-}
-
-function extractPdfFinalOpinion(markdownText) {
-    const stopPattern = /^(감정인|감정인 서명|성명|날짜|서명|감정 기관명|연락처|이메일|\[감정인 이름\])/i;
-    const sectionLines = extractSectionLinesSafe(markdownText, 4);
-    const extracted = [];
-
-    for (const rawLine of sectionLines) {
-        const line = rawLine
-            .replace(/\\n/g, "\n")
-            .replace(/\*\*(.+?)\*\*/g, "$1")
-            .replace(/`([^`]+)`/g, "$1")
-            .trimEnd();
-        if (!line.trim()) continue;
-        if (stopPattern.test(line.trim())) break;
-        extracted.push(line);
-    }
-
-    if (extracted.length > 0) {
-        return extracted.join("\n").trim();
-    }
-
-    return extractFinalOpinionSafe(markdownText)
-        .replace(/(?:감정인 서명|서명|감정 기관명|연락처|이메일)[\s\S]*$/i, "")
-        .trim();
-}
-
-function sanitizePdfOpinionText(text) {
-    if (!text) return "";
-
-    return text
-        .split(/\r?\n/)
-        .map((line) => line.trim())
-        .filter((line) => {
-            if (!line) return false;
-            if (/^[[{]/.test(line)) return false;
-            if (/^(?:[\]}"',\s]+)$/.test(line)) return false;
-            if (/(analysis_id|filename|final_prediction|overall_confidence_percent|process_time_seconds|timeline_chart|detailed_analysis|decisive_frames|other_frames)/i.test(line)) {
-                return false;
-            }
-            return true;
-        })
-        .join("\n")
-        .trim();
-}
-
-// eslint-disable-next-line no-unused-vars
-function sanitizeAiSummaryForPdf(text) {
-    if (!text) return "";
-
-    return text
-        .split(/\r?\n/)
-        .map((line) => line.replace(/^#{1,6}\s+/, "").replace(/\*\*(.+?)\*\*/g, "$1").trim())
-        .filter(Boolean)
-        .join("\n")
-        .trim();
-}
-
-function normalizeForensicSectionText(markdownText, sectionNumber) {
-    return extractSectionLinesSafe(markdownText, sectionNumber)
-        .join("\n")
-        .replace(/\r/g, "")
-        .replace(/\\n/g, "\n")
-        .replace(/\*\*/g, "")
-        .replace(/`([^`]+)`/g, "$1")
-        .replace(/\n\s*\*\s*\n/g, "\n")
-        .replace(/\n\s*\*\s*/g, "\n")
-        .replace(/[ \t]+\n/g, "\n")
-        .trim();
-}
-
-// eslint-disable-next-line no-unused-vars
-function parseForensicFrameFindingsSafe(markdownText) {
-    // 다양한 마크다운 표기(굵게/하이픈/콜론 유무)를 허용하는 안전 파서.
-    const lines = extractSectionLinesSafe(markdownText, 2);
-    const findings = [];
-    let current = null;
-
-    lines.forEach((rawLine) => {
-        const line = rawLine.trim();
-        if (!line) return;
-
-        const rankFrameMatch = line.match(/^\*\s+\*\*프레임\s+(\d+)\s*\(Rank\s+\d+\)\s*:\*\*/i);
-        if (rankFrameMatch) {
-            current = {
-                frameIndex: Number(rankFrameMatch[1]),
-                imageName: "",
-                probabilityText: "",
-                analysisText: "",
-            };
-            findings.push(current);
-            return;
-        }
-
-        const frameMatch = line.match(/(\d+).*?\((?:.*?:\s*)?([^)]+\.(?:jpg|jpeg|png|webp))\)/i);
-        if (frameMatch) {
-            current = {
-                frameIndex: Number(frameMatch[1]),
-                imageName: frameMatch[2].trim(),
-                probabilityText: "",
-                analysisText: "",
-            };
-            findings.push(current);
-            return;
-        }
-
-        if (!current) return;
-
-        const frameIndexMatch = line.match(/`frame_index`\s*:\s*(\d+)/i);
-        if (frameIndexMatch) {
-            current.frameIndex = Number(frameIndexMatch[1]);
-        }
-
-        const probabilityMatch = line.replace(/\*\*/g, "").match(/(\d+(?:\.\d+)?)%/);
-        if (probabilityMatch) {
-            current.probabilityText = `${probabilityMatch[1]}%`;
-            return;
-        }
-
-        if (line.includes(":")) {
-            const [, maybeText = ""] = line.replace(/\*\*/g, "").split(/:\s*/, 2);
-            if (maybeText) {
-                current.analysisText = current.analysisText
-                    ? `${current.analysisText} ${maybeText.trim()}`
-                    : maybeText.trim();
-                return;
-            }
-        }
-
-        if (line.startsWith("*")) {
-            return;
-        }
-
-        current.analysisText = current.analysisText
-            ? `${current.analysisText} ${line.replace(/\*\*/g, "").trim()}`
-            : line.replace(/\*\*/g, "").trim();
-    });
-
-    return findings;
-}
-
-function parseTechnicalRiskAssessmentsSafe(markdownText) {
-    // 제목 패턴이 흔들려도 "위험도 평가" 섹션 텍스트를 유연하게 파싱한다.
-    const lines = extractSectionLinesSafe(markdownText, 3);
-    const assessments = [];
-    let current = null;
-
-    lines.forEach((rawLine) => {
-        const line = rawLine.trim();
-        if (!line) return;
-
-        if (line.startsWith("*") && line.includes("**") && line.includes(":")) {
-            const normalized = line.replace(/^\*\s*/, "").replace(/\*\*/g, "").trim();
-            const [titlePart, ...descriptionParts] = normalized.split(":");
-            current = {
-                title: titlePart.trim(),
-                description: descriptionParts.join(":").trim(),
-            };
-            assessments.push(current);
-            return;
-        }
-
-        if (!current) return;
-
-        const cleaned = line.replace(/\*\*/g, "").trim();
-        current.description = current.description
-            ? `${current.description} ${cleaned}`
-            : cleaned;
-    });
-
-    return assessments;
-}
-
-// eslint-disable-next-line no-unused-vars
-function extractFrameAnalysisIntroSafe(markdownText) {
-    const sectionText = extractSectionLinesSafe(markdownText, 2)
-        .map((line) => line.replace(/\*\*(.+?)\*\*/g, "$1").trim())
-        .filter(Boolean);
-
-    const introLines = [];
-    for (const line of sectionText) {
-        if (/프레임\s+\d+\s*\(rank/i.test(line)) break;
-        if (line === "*") continue;
-        introLines.push(line);
-    }
-
-    return introLines.join(" ").trim();
-}
-
-// eslint-disable-next-line no-unused-vars
-function parseRankedFrameAnalysisSafe(markdownText) {
-    const normalizedText = extractSectionLinesSafe(markdownText, 2)
-        .map((line) => line.replace(/\*\*(.+?)\*\*/g, "$1"))
-        .join("\n");
-
-    const frameBlocks = normalizedText.split(/\n\s*\*\s*/).map((block) => block.trim()).filter(Boolean);
-
-    return frameBlocks
-        .map((block) => {
-            const frameMatch = block.match(/프레임\s+(\d+)\s*\(rank\s*(\d+)\)/i);
-            if (!frameMatch) return null;
-
-            const probabilityMatch = block.match(/fake_prob:\s*(\d+(?:\.\d+)?)%,\s*real_prob:\s*(\d+(?:\.\d+)?)%/i);
-            const descriptionMatch = block.match(/이미지 분석:\s*([\s\S]*)/i);
-
-            return {
-                frameIndex: Number(frameMatch[1]),
-                rank: Number(frameMatch[2]),
-                probabilityText: probabilityMatch
-                    ? `fake_prob: ${probabilityMatch[1]}%, real_prob: ${probabilityMatch[2]}%`
-                    : "-",
-                analysisText: descriptionMatch
-                    ? descriptionMatch[1].replace(/\s+/g, " ").trim()
-                    : "",
-            };
-        })
-        .filter(Boolean);
-}
-
-// eslint-disable-next-line no-unused-vars
-function extractFrameAnalysisIntroV2(markdownText) {
-    const sectionText = extractSectionLinesSafe(markdownText, 2)
-        .map((line) => line.replace(/\*\*(.+?)\*\*/g, "$1").trim())
-        .filter(Boolean);
-
-    const introLines = [];
-    for (const line of sectionText) {
-        if (/rank\s*\d+/i.test(line)) break;
-        if (line === "*") continue;
-        introLines.push(line);
-    }
-
-    return introLines.join(" ").trim();
-}
-
-// eslint-disable-next-line no-unused-vars
-function parseRankedFrameAnalysisV2(markdownText) {
-    const normalizedText = extractSectionLinesSafe(markdownText, 2)
-        .map((line) => line.replace(/\*\*(.+?)\*\*/g, "$1"))
-        .join("\n");
-
-    const frameBlocks = normalizedText
-        .split(/\n\s*\*\s*/)
-        .map((block) => block.trim())
-        .filter(Boolean);
-
-    return frameBlocks
-        .map((block) => {
-            const frameMatch = block.match(/(?:프레임|frame)\s+(\d+)\s*\(rank\s*(\d+)\)/i);
-            if (!frameMatch) return null;
-
-            const probabilityMatch = block.match(/fake_prob:\s*(\d+(?:\.\d+)?)%,\s*real_prob:\s*(\d+(?:\.\d+)?)%/i);
-            const descriptionMatch = block.match(/(?:이미지 분석|image analysis):\s*([\s\S]*)/i);
-
-            return {
-                frameIndex: Number(frameMatch[1]),
-                rank: Number(frameMatch[2]),
-                probabilityText: probabilityMatch
-                    ? `fake_prob: ${probabilityMatch[1]}%, real_prob: ${probabilityMatch[2]}%`
-                    : "-",
-                analysisText: descriptionMatch
-                    ? descriptionMatch[1].replace(/\s+/g, " ").trim()
-                    : "",
-            };
-        })
-        .filter(Boolean);
-}
-
-// eslint-disable-next-line no-unused-vars
-function extractFrameAnalysisIntroV3(markdownText) {
-    const sectionText = extractSectionLinesSafe(markdownText, 2)
-        .map((line) => line.replace(/\*\*(.+?)\*\*/g, "$1").trim())
-        .filter(Boolean);
-
-    const introLines = [];
-    for (const line of sectionText) {
-        if (/(?:프레임|frame)\s+\d+\s*\(rank/i.test(line)) break;
-        if (line === "*") continue;
-        introLines.push(line);
-    }
-
-    return introLines.join(" ").trim();
-}
-
-// eslint-disable-next-line no-unused-vars
-function parseRankedFrameAnalysisV3(markdownText) {
-    const sectionText = extractSectionLinesSafe(markdownText, 2)
-        .map((line) => line.replace(/\*\*(.+?)\*\*/g, "$1"))
-        .join("\n");
-
-    const blocks = sectionText
-        .split(/\n\s*\*\s*/)
-        .map((block) => block.trim())
-        .filter((block) => /(?:프레임|frame)\s+\d+\s*\(rank/i.test(block));
-
-    return blocks.map((block) => {
-        const frameMatch = block.match(/(?:프레임|frame)\s+(\d+)\s*\(rank\s*(\d+)\)/i);
-        const probabilityMatch = block.match(/fake_prob:\s*(\d+(?:\.\d+)?)%,\s*real_prob:\s*(\d+(?:\.\d+)?)%/i);
-        const descriptionMatch = block.match(/(?:이미지 분석|image analysis):\s*([\s\S]*)/i);
-
-        return {
-            frameIndex: frameMatch ? Number(frameMatch[1]) : 0,
-            rank: frameMatch ? Number(frameMatch[2]) : 0,
-            probabilityText: probabilityMatch
-                ? `fake_prob: ${probabilityMatch[1]}%, real_prob: ${probabilityMatch[2]}%`
-                : "-",
-            analysisText: descriptionMatch
-                ? descriptionMatch[1].replace(/\s+/g, " ").trim()
-                : "",
-        };
-    }).filter((item) => item.frameIndex > 0);
-}
-
-function buildTopFrameExplanations(summaryFrames, forensicFrameFindings, normalizedHeatmaps) {
-    return summaryFrames.slice(0, 4).map((frame, index) => {
-        const matchedFinding = forensicFrameFindings.find((item) => item.frameIndex === frame.frame_idx);
-        const matchedHeatmap = normalizedHeatmaps.find((item) => item.frame_idx === frame.frame_idx);
-        const defaultDescription =
-            frame.fake_prob >= 70
-                ? "프레임 경계와 질감 변화가 두드러져 상위 위험 구간으로 분류되었습니다."
-                : frame.fake_prob >= 50
-                    ? "주요 피사체 주변의 일관성 저하가 감지되어 추가 확인이 필요한 프레임입니다."
-                    : "비교군 대비 위조 확률은 낮지만, 대표 샘플로 포함된 프레임입니다.";
-
-        return {
-            rank: index + 1,
-            frameIndex: frame.frame_idx,
-            probabilityText: matchedFinding?.probabilityText || `${frame.fake_prob.toFixed(1)}%`,
-            imageName: matchedFinding?.imageName || matchedHeatmap?.sourceImage || matchedHeatmap?.image || "-",
-            description: matchedFinding?.analysisText || defaultDescription,
-        };
-    });
-}
-
-// eslint-disable-next-line no-unused-vars
-function parseRankedFrameAnalysisV5(markdownText) {
-    const normalizedText = normalizeForensicSectionText(markdownText, 2);
-
-    const frameStartRegex = /(?:^|\n)\s*(?:[*-]\s*)?(?:프레임|frame)?\s*(\d+)\s*\(rank\s*(\d+)\)\s*:/gi;
-    const matches = Array.from(normalizedText.matchAll(frameStartRegex));
-
-    return matches.map((match, index) => {
-        const start = match.index ?? 0;
-        const end = index + 1 < matches.length ? (matches[index + 1].index ?? normalizedText.length) : normalizedText.length;
-        const block = normalizedText.slice(start, end).trim();
-        const probabilityMatch = block.match(/fake_prob:\s*(\d+(?:\.\d+)?)%,\s*real_prob:\s*(\d+(?:\.\d+)?)%/i);
-        const markerMatch = block.match(/(?:이미지\s*분석|image\s*analysis|analysis)\s*:/i);
-        const descriptionText = markerMatch && markerMatch.index != null
-            ? block.slice(markerMatch.index + markerMatch[0].length).replace(/\s+/g, " ").trim()
-            : "";
-
-        return {
-            frameIndex: Number(match[1]),
-            rank: Number(match[2]),
-            probabilityText: probabilityMatch
-                ? `fake_prob: ${probabilityMatch[1]}%, real_prob: ${probabilityMatch[2]}%`
-                : "-",
-            analysisText: descriptionText,
-        };
-    }).filter((item) => item.frameIndex > 0);
-}
-
-function parseRankedFrameAnalysisV6(markdownText) {
-    const normalizedText = normalizeForensicSectionText(markdownText, 2);
-    const frameStartRegex = /(?:^|\n)\s*(?:[*-]\s*)?(?:\S+\s*)?(\d+)\s*\(rank\s*(\d+)\)\s*:/gi;
-    const matches = Array.from(normalizedText.matchAll(frameStartRegex));
-
-    return matches.map((match, index) => {
-        const start = match.index ?? 0;
-        const end = index + 1 < matches.length ? (matches[index + 1].index ?? normalizedText.length) : normalizedText.length;
-        const block = normalizedText.slice(start, end).trim();
-        const probabilityMatch = block.match(/fake_prob:\s*(\d+(?:\.\d+)?)%,\s*real_prob:\s*(\d+(?:\.\d+)?)%/i);
-        const markerIndex = block.search(/(?:분석|analysis)\s*:/i);
-        const descriptionText = markerIndex >= 0
-            ? block.slice(markerIndex).replace(/^(?:[^:]+):\s*/i, "").replace(/\s+/g, " ").trim()
-            : "";
-
-        return {
-            frameIndex: Number(match[1]),
-            rank: Number(match[2]),
-            probabilityText: probabilityMatch
-                ? `fake_prob: ${probabilityMatch[1]}%, real_prob: ${probabilityMatch[2]}%`
-                : "-",
-            analysisText: descriptionText,
-        };
-    }).filter((item) => item.frameIndex > 0);
-}
-
-// eslint-disable-next-line no-unused-vars
-function extractFrameAnalysisIntroV4(markdownText) {
-    const sectionText = extractSectionLinesSafe(markdownText, 2)
-        .map((line) =>
-            line
-                .replace(/\*\*(.+?)\*\*/g, "$1")
-                .replace(/`([^`]+)`/g, "$1")
-                .replace(/^\*\s*/, "")
-                .trim()
-        )
-        .filter(Boolean);
-
-    const introLines = [];
-    for (const line of sectionText) {
-        if (/(?:프레임|frame)\s+\d+\s*\(rank/i.test(line)) break;
-        introLines.push(line);
-    }
-
-    return introLines.join(" ").trim();
-}
-
-function extractFrameAnalysisIntroV5(markdownText) {
-    const normalizedText = normalizeForensicSectionText(markdownText, 2);
-    const firstFrameIndex = normalizedText.search(/(?:^|\n)\s*(?:[*-]\s*)?(?:프레임|frame)?\s*\d+\s*\(rank\s*\d+\)\s*:/i);
-
-    if (firstFrameIndex < 0) {
-        return normalizedText;
-    }
-
-    return normalizedText
-        .slice(0, firstFrameIndex)
-        .replace(/\s+/g, " ")
-        .trim();
-}
-
-// eslint-disable-next-line no-unused-vars
-function parseRankedFrameAnalysisV4(markdownText) {
-    const normalizedText = extractSectionLinesSafe(markdownText, 2)
-        .join("\n")
-        .replace(/\r/g, "")
-        .replace(/\*\*/g, "")
-        .replace(/`([^`]+)`/g, "$1")
-        .replace(/\n\s*\*\s*\n/g, "\n")
-        .replace(/\n\s*\*\s*/g, "\n")
-        .trim();
-
-    const frameStartRegex = /(?:^|\n)\s*(?:프레임|frame)\s+(\d+)\s*\(rank\s*(\d+)\)\s*:/gi;
-    const matches = Array.from(normalizedText.matchAll(frameStartRegex));
-
-    return matches.map((match, index) => {
-        const start = match.index ?? 0;
-        const end = index + 1 < matches.length ? (matches[index + 1].index ?? normalizedText.length) : normalizedText.length;
-        const block = normalizedText.slice(start, end).trim();
-        const probabilityMatch = block.match(/fake_prob:\s*(\d+(?:\.\d+)?)%,\s*real_prob:\s*(\d+(?:\.\d+)?)%/i);
-        const descriptionMatch = block.match(/(?:이미지 분석|image analysis):\s*([\s\S]*)/i);
-
-        return {
-            frameIndex: Number(match[1]),
-            rank: Number(match[2]),
-            probabilityText: probabilityMatch
-                ? `fake_prob: ${probabilityMatch[1]}%, real_prob: ${probabilityMatch[2]}%`
-                : "-",
-            analysisText: descriptionMatch
-                ? descriptionMatch[1].replace(/\s+/g, " ").trim()
-                : "",
-        };
-    }).filter((item) => item.frameIndex > 0);
-}
-
-function extractFrameAnalysisClosingV4(markdownText) {
-    const normalizedText = extractSectionLinesSafe(markdownText, 2)
-        .join("\n")
-        .replace(/\r/g, "")
-        .replace(/\*\*/g, "")
-        .replace(/`([^`]+)`/g, "$1")
-        .replace(/\n\s*\*\s*\n/g, "\n")
-        .replace(/\n\s*\*\s*/g, "\n")
-        .trim();
-
-    const summaryMatch = normalizedText.match(/(?:^|\n)\s*종합적으로 볼 때[\s\S]*$/i);
-    return summaryMatch ? summaryMatch[0].replace(/\s+/g, " ").trim() : "";
-}
-
-function extractTechnicalRiskIntroSafe(markdownText) {
-    const lines = extractSectionLinesSafe(markdownText, 3);
-    const introLines = [];
-
-    for (const rawLine of lines) {
-        const line = rawLine.replace(/\*\*(.+?)\*\*/g, "$1").trim();
-        if (!line) continue;
-        if (line.startsWith("*")) break;
-        introLines.push(line);
-    }
-
-    return introLines.join(" ").trim();
-}
-
 function buildDisplayHeatmapFrames(analysisData, externalHeatmaps = []) {
-    // timeline_chart를 기준 축으로 잡고 heatmap 메타를 병합해
-    // 화면/표에서 바로 쓰기 좋은 프레임 객체 배열로 정규화한다.
     const timeline = analysisData.timeline_chart ?? [];
     const rawHeatmaps =
         externalHeatmaps.length > 0
             ? externalHeatmaps
-            : (
-                analysisData.heatmap_frames ??
-                [
-                    ...(analysisData.decisive_frames ?? []),
-                    ...(analysisData.other_frames ?? []),
-                ]
-            );
+            : analysisData.heatmap_frames ?? [];
 
     return timeline.map((frame, idx) => {
         const matched =
-            rawHeatmaps.find(
-                (h) =>
-                    h.frame_idx === frame.frame_idx ||
-                    h.frame_index === frame.frame_idx ||
-                    h.sample_no === frame.sample_no
-            ) ||
+            rawHeatmaps.find((h) => h.frame_idx === frame.frame_idx) ||
             rawHeatmaps[idx] ||
             null;
 
@@ -756,8 +212,7 @@ function buildDisplayHeatmapFrames(analysisData, externalHeatmaps = []) {
             frame_idx: frame.frame_idx,
             fake_prob: fakeProb,
             real_prob: realProb,
-            image: matched?.image ?? matched?.image_url ?? null,
-            sourceImage: matched?.sourceImage ?? matched?.image ?? matched?.image_url ?? null,
+            image: matched?.image ?? null,
             risk:
                 frame.risk ??
                 (fakeProb >= 70 ? "높음" : fakeProb >= 50 ? "중간" : "낮음"),
@@ -765,100 +220,14 @@ function buildDisplayHeatmapFrames(analysisData, externalHeatmaps = []) {
     });
 }
 
-function parseDurationToSeconds(durationText) {
-    if (!durationText || typeof durationText !== "string") return null;
-
-    const normalized = durationText.trim();
-    if (!normalized) return null;
-
-    const colonParts = normalized.split(":").map((part) => Number(part.trim()));
-    if (colonParts.length >= 2 && colonParts.every((part) => Number.isFinite(part))) {
-        return colonParts.reduce((total, part) => (total * 60) + part, 0);
-    }
-
-    const numericParts = normalized.match(/\d+(?:\.\d+)?/g);
-    if (numericParts?.length === 1 && Number.isFinite(Number(numericParts[0]))) {
-        return Number(numericParts[0]);
-    }
-
-    let seconds = 0;
-    const hourMatch = normalized.match(/(\d+(?:\.\d+)?)\s*(?:h|hr|hour|hours)/i);
-    const minuteMatch = normalized.match(/(\d+(?:\.\d+)?)\s*(?:m|min|minute|minutes)/i);
-    const secondMatch = normalized.match(/(\d+(?:\.\d+)?)\s*(?:s|sec|second|seconds)/i);
-
-    if (hourMatch) seconds += Number(hourMatch[1]) * 3600;
-    if (minuteMatch) seconds += Number(minuteMatch[1]) * 60;
-    if (secondMatch) seconds += Number(secondMatch[1]);
-
-    return seconds > 0 ? seconds : null;
-}
-function getPdfFileFormatDisplay(analysisData, fallbackExt) {
-    const sourceUrl = analysisData.sourceUrl || "";
-    const durationSeconds = parseDurationToSeconds(analysisData.video_duration || "");
-    const titleText = analysisData.filename || "";
-    const isYoutubeSource =
-        analysisData.sourceType === "url" ||
-        Boolean(analysisData.videoId) ||
-        /(?:youtube\.com|youtu\.be)/i.test(sourceUrl);
-    const isYoutubeShorts =
-        /(?:youtube\.com\/shorts\/|youtu\.be\/shorts\/|[?&]feature=shorts)/i.test(sourceUrl) ||
-        /#shorts|\bshorts\b/i.test(titleText);
-    const isShortVideo = durationSeconds != null && durationSeconds <= 60;
-
-    if (isYoutubeSource && (isYoutubeShorts || isShortVideo)) {
-        return {
-            value: "MP4(MPEG-4)",
-            compact: true,
-        };
-    }
-
-    return {
-        value: `.${fallbackExt.toUpperCase()}`,
-        compact: false,
-    };
+function extractForensicData(forensicOpinion) {
+    if (!forensicOpinion) return null;
+    if (typeof forensicOpinion === "string") return null;
+    const data = forensicOpinion.forensic_opinion ?? forensicOpinion;
+    if (!data || typeof data !== "object") return null;
+    return data;
 }
 
-function buildForensicOpinionMarkdown(forensicOpinion) {
-    if (!forensicOpinion) return "";
-    if (typeof forensicOpinion === "string") return forensicOpinion;
-
-    const opinion = forensicOpinion.forensic_opinion ?? forensicOpinion;
-    if (!opinion || typeof opinion !== "object") return "";
-
-    const lines = [];
-    lines.push("### 1. 분석 개요 및 대상");
-    lines.push(opinion.분석_개요_및_대상 || "");
-    lines.push("");
-    lines.push("### 2. 주요 조작 징후 프레임별 분석");
-
-    const frameFindings = Array.isArray(opinion.주요_조작_징후_프레임별_분석)
-        ? opinion.주요_조작_징후_프레임별_분석
-        : [];
-
-    frameFindings.forEach((item) => {
-        const frameIndex = item.frame_idx ?? item.frame_index ?? item.sample_no ?? 0;
-        lines.push(`프레임 ${frameIndex} (Rank ${item.frame_rank ?? "-" }):`);
-        lines.push(`fake_prob: ${Number(item.fake_prob ?? 0).toFixed(2)}%, real_prob: ${Number(100 - Number(item.fake_prob ?? 0)).toFixed(2)}%`);
-        lines.push(`이미지 분석: ${item.소견 || ""}`);
-        lines.push("");
-    });
-
-    lines.push("### 3. 기술적 위험도 평가");
-    if (opinion.텍스처_일관성_수치_분석) {
-        lines.push(opinion.텍스처_일관성_수치_분석);
-    }
-    if (opinion.시공간_일관성_수치_분석) {
-        lines.push(opinion.시공간_일관성_수치_분석);
-    }
-    if (opinion.기술적_위험도_평가?.위험도 || opinion.기술적_위험도_평가?.근거) {
-        lines.push(`* 기술적 위험도 ${opinion.기술적_위험도_평가?.위험도 || ""}: ${opinion.기술적_위험도_평가?.근거 || ""}`);
-    }
-    lines.push("");
-    lines.push("### 4. 최종 감정 의견");
-    lines.push(opinion.최종_감정_의견 || "");
-
-    return lines.join("\n").trim();
-}
 export default function PrintableReport({
     analysisData,
     inlineFrameStats,
@@ -866,10 +235,7 @@ export default function PrintableReport({
     reportDate,
     displayHeatmapFrames = [],
     forensicOpinion = "",
-    comparisonNotes = [],
 }) {
-    // 1) 원본 분석 데이터에서 PDF 표시용 파생값 계산
-    // 2) 각 섹션(표/그래프/히트맵)에서 재사용할 공통 데이터 생성
     const isFake = analysisData.final_prediction === "FAKE";
     const verdictText = isFake ? "AI 생성 의심" : "정상 영상";
     const verdictColor = isFake ? "#dc2626" : "#16a34a";
@@ -880,20 +246,13 @@ export default function PrintableReport({
     const totalFrames = timelineChart.length;
 
     const fileExt = analysisData.filename?.split(".").pop()?.toLowerCase() || "mp4";
-    const fileFormatDisplay = getPdfFileFormatDisplay(analysisData, fileExt);
-    // 백엔드 응답에 모델 목록이 없을 때를 대비해 기본 모델명을 사용한다.
-    const modelNames = Array.isArray(analysisData.model_names) && analysisData.model_names.length > 0
-        ? analysisData.model_names
-        : analysisData.model_used
-            ? [analysisData.model_used]
-            : [
-                "Vision Transformer",
-                "ResNet-50",
-                "XceptionNet",
-            ];
+    const modelNames = analysisData.model_names ?? [
+        "Vision Transformer",
+        "ResNet-50",
+        "XceptionNet",
+    ];
 
     const sortedFramesDesc = [...timelineChart].sort((a, b) => b.fake_prob - a.fake_prob);
-    // 상위 위험 프레임은 하이라이트 카드(오렌지 점) 표시 여부 판단에 사용한다.
     const sortedTop4 = sortedFramesDesc.slice(0, 4).map((d) => d.frame_idx);
 
     const avgProb = totalFrames
@@ -909,45 +268,22 @@ export default function PrintableReport({
         .slice(0, summaryFrameLimit)
         .sort((a, b) => a.frame_idx - b.frame_idx);
 
-    // 페이지별 용량을 맞추기 위해 고정 단위로 chunk 분할한다.
     const frameChunks = chunkArray(timelineChart, 15);
     const normalizedHeatmaps = buildDisplayHeatmapFrames(
         analysisData,
         displayHeatmapFrames
     );
-    // 마크다운 forensic 의견을 PDF 표시용 구조로 변환한다.
     const heatmapChunks = chunkArray(normalizedHeatmaps, 6);
-    const forensicOpinionText = buildForensicOpinionMarkdown(forensicOpinion);
-    const finalOpinion =
-        sanitizePdfOpinionText(extractPdfFinalOpinion(forensicOpinionText)) ||
-        " ";
-    const forensicFrameFindings = parseRankedFrameAnalysisV6(forensicOpinionText);
-    const technicalRiskAssessments = parseTechnicalRiskAssessmentsSafe(forensicOpinionText);
-    const technicalRiskIntro = extractTechnicalRiskIntroSafe(forensicOpinionText);
-    const frameAnalysisIntro = extractFrameAnalysisIntroV5(forensicOpinionText);
-    const frameAnalysisClosing = extractFrameAnalysisClosingV4(forensicOpinionText);
-    const detailItems = technicalRiskAssessments.length > 0
-        ? technicalRiskAssessments
-        : publicItems.map((item) => ({
-            title: item.title,
-            description: item.description,
-        }));
-    const topFrameExplanations = buildTopFrameExplanations(
-        sortedFramesDesc,
-        forensicFrameFindings,
-        normalizedHeatmaps
-    );
-    const displayFrameFindings = forensicFrameFindings.length > 0
-        ? forensicFrameFindings
-        : topFrameExplanations.map((item) => ({
-            frameIndex: item.frameIndex,
-            rank: item.rank,
-            probabilityText: item.probabilityText,
-            analysisText: item.description,
-        }));
-    const totalPdfPages = 2 + heatmapChunks.length + (comparisonNotes.length > 0 ? 1 : 0);
 
-    // 인쇄 안정성을 위해 CSS 파일 의존 대신 inline style 시스템을 사용한다.
+    const forensicData = extractForensicData(forensicOpinion);
+    const frameFindings = forensicData?.주요_조작_징후_프레임별_분석 ?? [];
+    const textureAnalysis = forensicData?.텍스처_일관성_수치_분석 ?? "";
+    const spatiotemporalAnalysis = forensicData?.시공간_일관성_수치_분석 ?? "";
+    const technicalRisk = forensicData?.기술적_위험도_평가 ?? null;
+    const finalOpinion = forensicData?.최종_감정_의견 ?? "";
+
+    const totalPdfPages = 2 + heatmapChunks.length;
+
     const S = {
         page: {
             width: 794,
@@ -1120,89 +456,89 @@ export default function PrintableReport({
             padding: "3px 6px",
             background: "#fff7ed",
         },
-        findingTable: {
-            width: "100%",
-            borderCollapse: "collapse",
-            fontSize: 10,
-            marginTop: 10,
-        },
-        findingThumb: {
-            width: 63,
-            height: 90,
-            objectFit: "contain",
-            display: "block",
-            background: "#0f172a",
-            borderRadius: 6,
-            border: "1px solid #e2e8f0",
-        },
-        findingEmpty: {
-            width: 63,
-            height: 90,
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            background: "#f8fafc",
-            color: "#94a3b8",
-            borderRadius: 6,
-            border: "1px solid #e2e8f0",
-            fontSize: 9,
-            fontWeight: 700,
-        },
-        riskBox: {
-            border: "1px solid #e2e8f0",
-            borderRadius: 8,
-            padding: "10px 12px",
-            background: "#fff",
-            marginTop: 10,
-        },
-        riskBoxTitle: {
-            fontSize: 11,
-            fontWeight: 800,
-            color: "#1e293b",
-            marginBottom: 4,
-        },
-        riskBoxText: {
-            fontSize: 10,
-            lineHeight: 1.7,
-            color: "#475569",
-            whiteSpace: "pre-wrap",
-        },
 
         hmGrid: {
             display: "grid",
-            gridTemplateColumns: "repeat(3, 1fr)",
-            gap: 10,
-            alignItems: "start",
+            gridTemplateColumns: "repeat(2, 1fr)",
+            gap: 12,
         },
+        hmLegend: {
+            border: "1px solid #e2e8f0",
+            borderRadius: 6,
+            background: "#f8fafc",
+            padding: "8px 10px",
+            marginBottom: 10,
+        },
+
+        hmLegendTitle: {
+            fontSize: 10,
+            fontWeight: 900,
+            color: "#1e3a8a",
+            marginBottom: 6,
+        },
+
+        hmLegendDesc: {
+            fontSize: 9,
+            color: "#64748b",
+            lineHeight: 1.5,
+            marginBottom: 7,
+        },
+
+        // 🔥 핵심: 자연스러운 히트맵 그라데이션
+        hmLegendBar: {
+            width: "100%",
+            height: 10,
+            borderRadius: 999,
+            marginBottom: 5,
+            border: "1px solid #e2e8f0",
+            background: "linear-gradient(to right, \
+        #2563eb 0%, \
+        #22c55e 25%, \
+        #facc15 50%, \
+        #f97316 75%, \
+        #dc2626 100%)",
+        },
+
+        hmLegendScale: {
+            display: "flex",
+            justifyContent: "space-between",
+            fontSize: 8,
+            color: "#64748b",
+            fontWeight: 700,
+        },
+        hmLegendItems: {
+            display: "flex",
+            justifyContent: "space-between",
+            gap: 8,
+            fontSize: 9,
+            color: "#475569",
+            fontWeight: 700,
+        },
+        hmLegendDot: {
+            width: 8,
+            height: 8,
+            borderRadius: "50%",
+            display: "inline-block",
+            marginRight: 4,
+        },
+
         hmCard: {
             border: "1px solid #e2e8f0",
             borderRadius: 8,
             overflow: "hidden",
             background: "#fff",
             boxShadow: "0 2px 8px rgba(15,23,42,0.05)",
-            display: "flex",
-            flexDirection: "column",
-            breakInside: "avoid",
-            pageBreakInside: "avoid",
-        },
-        hmMedia: {
-            width: 120,
-            height: 213,
-            margin: "12px auto 0",
-            borderRadius: 8,
-            overflow: "hidden",
-            background: "#0f172a",
         },
         hmImg: {
             width: "100%",
-            height: "100%",
-            objectFit: "contain",
+            height: 170,
+            objectFit: "cover",
             display: "block",
-            background: "#0f172a",
+            background: "#e2e8f0",
         },
         hmEmpty: {
             width: "100%",
-            height: "100%",
+            height: 170,
             background: "#f8fafc",
             display: "flex",
             alignItems: "center",
@@ -1214,20 +550,12 @@ export default function PrintableReport({
             fontWeight: 700,
         },
         hmMeta: {
-            padding: "6px 8px",
-            fontSize: 9,
-            lineHeight: 1.5,
+            padding: "8px 10px",
+            fontSize: 10,
+            lineHeight: 1.7,
             color: "#374151",
         },
-        compareList: {
-            margin: 0,
-            paddingLeft: 18,
-            display: "grid",
-            gap: 8,
-            color: "#334155",
-            fontSize: 11,
-            lineHeight: 1.7,
-        },
+
         footer: {
             borderTop: "1px solid #e2e8f0",
             paddingTop: 8,
@@ -1363,7 +691,6 @@ export default function PrintableReport({
 
             {/* PAGE 1 */}
             <div style={S.page} className="pdf-page">
-                {/* 표지 + 핵심 요약(판정, 메타정보, 타임라인 그래프) */}
                 <div style={S.brandBar}>
                     <div style={S.brandLeft}>
                         <div style={{ display: "flex", alignItems: "baseline", gap: 10 }}>
@@ -1397,7 +724,6 @@ export default function PrintableReport({
                 </div>
 
                 <div style={S.metaCardWrap}>
-                    {/* 메타 정보는 2행 x 4열 고정 그리드로 배치한다. */}
                     {[
                         { label: "영상 길이", value: analysisData.video_duration || "2분 34초" },
                         { label: "해상도", value: analysisData.resolution || "1920×1080" },
@@ -1410,8 +736,6 @@ export default function PrintableReport({
                     ].map((item, i) => {
                         const isLastCol = (i + 1) % 4 === 0;
                         const isLastRow = i >= 4;
-                        const isFileFormatItem = item.value === `.${fileExt.toUpperCase()}`;
-                        const renderedValue = isFileFormatItem ? fileFormatDisplay.value : item.value;
 
                         return (
                             <div
@@ -1423,7 +747,7 @@ export default function PrintableReport({
                                 }}
                             >
                                 <div style={S.metaCardLabel}>{item.label}</div>
-                                <div style={S.metaCardValue}>{renderedValue}</div>
+                                <div style={S.metaCardValue}>{item.value}</div>
                             </div>
                         );
                     })}
@@ -1462,7 +786,6 @@ export default function PrintableReport({
                                 프레임별 위조 의심도 그래프 <span style={S.sectionEn}>Frame Probability</span>
                             </div>
 
-                            {/* 핵심 KPI 카드: 피크 프레임, 위험 구간 수, 평균 확률 */}
                             <div style={S.metricGrid}>
                                 {[
                                     { label: "최고 의심 프레임", value: `Frame ${inlineFrameStats.peakIdx}`, unit: "" },
@@ -1514,7 +837,6 @@ export default function PrintableReport({
                                     </thead>
                                     <tbody>
                                         {modelNames.map((name, i) => {
-                                            // 현재는 개별 모델 확률이 없는 구조라 총 신뢰도 기반 보정치로 시각화한다.
                                             const prob = analysisData.overall_confidence_percent - (i * 3.7) + (i * 2.1);
                                             const clamped = Math.max(0, Math.min(prob, 100));
                                             const risk = clamped >= 70 ? "HIGH" : clamped >= 50 ? "MEDIUM" : "LOW";
@@ -1552,7 +874,7 @@ export default function PrintableReport({
                             </div>
                         </div>
 
-                        <div style={S.controlBox}>
+                        {/* <div style={S.controlBox}>
                             <div style={S.controlTitle}>권장 조치 Recommended Actions</div>
                             {[
                                 { label: "원본 보존", value: "즉시 필요" },
@@ -1574,7 +896,7 @@ export default function PrintableReport({
                                     </span>
                                 </div>
                             ))}
-                        </div>
+                        </div> */}
 
                         <div style={S.controlBox}>
                             <div style={S.controlTitle}>연구항목 Research Parameters</div>
@@ -1617,7 +939,7 @@ export default function PrintableReport({
                                 파일 형식
                             </div>
                             <div style={{ fontSize: 20, fontWeight: 900, color: "#1e3a8a" }}>
-                                {fileFormatDisplay.value}
+                                .{fileExt.toUpperCase()}
                             </div>
                             <div
                                 style={{
@@ -1661,7 +983,6 @@ export default function PrintableReport({
 
                     <div style={S.frameGrid}>
                         {summaryFrames.map((frame) => {
-                            // 상위 4개 위험 프레임은 별도 강조 스타일(S.frameCardTop) 적용.
                             const isTop = sortedTop4.includes(frame.frame_idx);
                             const riskColor =
                                 frame.fake_prob >= 70 ? "#dc2626" :
@@ -1728,7 +1049,6 @@ export default function PrintableReport({
 
             {/* PAGE 2 */}
             <div style={{ ...S.page, marginTop: 0 }} className="pdf-page">
-                {/* 상세 근거(항목별 분석/프레임 표/종합 의견) */}
                 <div style={S.brandBar}>
                     <div style={S.brandLeft}>
                         <div style={{ display: "flex", alignItems: "baseline", gap: 10 }}>
@@ -1750,33 +1070,69 @@ export default function PrintableReport({
                         세부 분석 항목 <span style={S.sectionEn}>Major Analysis Items</span>
                     </div>
 
-                    {false && technicalRiskIntro && (
-                        <div style={{ fontSize: 10, color: "#64748b", lineHeight: 1.6, marginBottom: 8 }}>
-                            {technicalRiskIntro}
-                        </div>
-                    )}
-
                     <table style={S.table}>
                         <thead>
                             <tr>
                                 <th style={{ ...S.th, width: "24%" }}>항목</th>
+                                <th style={{ ...S.th, width: "11%", textAlign: "center" }}>위험도</th>
+                                <th style={{ ...S.th, width: "14%" }}>점수</th>
                                 <th style={S.th}>설명</th>
                             </tr>
                         </thead>
                         <tbody>
-                            {detailItems.map((item, idx) => (
-                                <tr key={`detail-${idx}`} style={{ background: idx % 2 === 0 ? "#fff" : "#f8fafc" }}>
-                                    <td style={{ ...S.td, fontWeight: 700, fontSize: 10 }}>
-                                        {item.title}
+                            {publicItems.map((item, idx) => (
+                                <tr key={idx} style={{ background: idx % 2 === 0 ? "#fff" : "#f8fafc" }}>
+                                    <td style={{ ...S.td, fontWeight: 700 }}>{item.title}</td>
+                                    <td style={{ ...S.td, textAlign: "center" }}>
+                                        <RiskBadge level={item.risk_level} />
                                     </td>
-                                    <td style={{ ...S.td, fontSize: 10, lineHeight: 1.6 }}>
+                                    <td style={S.td}>
+                                        <MiniBar
+                                            value={item.score_percent}
+                                            color={
+                                                item.score_percent >= 70 ? "#dc2626" :
+                                                    item.score_percent >= 50 ? "#f59e0b" :
+                                                        "#1d4ed8"
+                                            }
+                                        />
+                                    </td>
+                                    <td style={{ ...S.td, fontSize: 10, lineHeight: 1.5 }}>
                                         {item.description}
                                     </td>
                                 </tr>
                             ))}
+                            {textureAnalysis && (
+                                <tr style={{ background: publicItems.length % 2 === 0 ? "#fff" : "#f8fafc" }}>
+                                    <td style={{ ...S.td, fontWeight: 700 }}>텍스처 일관성 분석</td>
+                                    <td style={{ ...S.td, textAlign: "center" }}>
+                                        <RiskBadge level={technicalRisk?.위험도 ?? "HIGH"} />
+                                    </td>
+                                    <td style={{ ...S.td, fontSize: 9, color: "#94a3b8" }}>—</td>
+                                    <td style={{ ...S.td, fontSize: 10, lineHeight: 1.5 }}>{textureAnalysis}</td>
+                                </tr>
+                            )}
+                            {spatiotemporalAnalysis && (
+                                <tr style={{ background: (publicItems.length + 1) % 2 === 0 ? "#fff" : "#f8fafc" }}>
+                                    <td style={{ ...S.td, fontWeight: 700 }}>시공간 일관성 분석</td>
+                                    <td style={{ ...S.td, textAlign: "center" }}>
+                                        <RiskBadge level={technicalRisk?.위험도 ?? "HIGH"} />
+                                    </td>
+                                    <td style={{ ...S.td, fontSize: 9, color: "#94a3b8" }}>—</td>
+                                    <td style={{ ...S.td, fontSize: 10, lineHeight: 1.5 }}>{spatiotemporalAnalysis}</td>
+                                </tr>
+                            )}
+                            {technicalRisk?.근거 && (
+                                <tr style={{ background: (publicItems.length + 2) % 2 === 0 ? "#fff" : "#f8fafc" }}>
+                                    <td style={{ ...S.td, fontWeight: 700 }}>기술적 위험도 평가</td>
+                                    <td style={{ ...S.td, textAlign: "center" }}>
+                                        <RiskBadge level={technicalRisk.위험도 ?? "HIGH"} />
+                                    </td>
+                                    <td style={{ ...S.td, fontSize: 9, color: "#94a3b8" }}>—</td>
+                                    <td style={{ ...S.td, fontSize: 10, lineHeight: 1.5 }}>{technicalRisk.근거}</td>
+                                </tr>
+                            )}
                         </tbody>
                     </table>
-
                 </div>
 
                 <div style={{ marginBottom: 14 }}>
@@ -1785,7 +1141,6 @@ export default function PrintableReport({
                         <span style={S.sectionEn}>Analysis Confidence Timeline</span>
                     </div>
 
-                    {false && (
                     <div
                         style={{
                             border: "1px solid #e2e8f0",
@@ -1863,167 +1218,41 @@ export default function PrintableReport({
                             </div>
                         ))}
                     </div>
-                    )}
+                </div>
 
-                    {false && frameAnalysisIntro && (
-                        <div style={{ fontSize: 10, color: "#475569", lineHeight: 1.7, marginTop: 10, marginBottom: 10 }}>
-                            {frameAnalysisIntro}
+                {frameFindings.length > 0 && (
+                    <div style={{ marginBottom: 14 }}>
+                        <div style={S.sectionTitle}>
+                            주요 조작 징후 프레임별 분석 <span style={S.sectionEn}>Frame-level Forgery Findings</span>
                         </div>
-                    )}
-
-                    {displayFrameFindings.length > 0 && (
-                        <table style={S.findingTable}>
+                        <table style={S.table}>
                             <thead>
                                 <tr>
-                                    <th style={{ ...S.th, width: "96px" }}>프레임 이미지</th>
-                                    <th style={{ ...S.th, width: "64px" }}>순위</th>
-                                    <th style={{ ...S.th, width: "92px" }}>프레임</th>
-                                    <th style={{ ...S.th, width: "180px" }}>위조 확률</th>
-                                    <th style={S.th}>설명</th>
+                                    <th style={{ ...S.th, width: "6%", textAlign: "center" }}>순위</th>
+                                    <th style={{ ...S.th, width: "14%", textAlign: "center" }}>위조 확률</th>
+                                    <th style={S.th}>소견</th>
                                 </tr>
                             </thead>
                             <tbody>
-                                {displayFrameFindings.map((finding, index) => {
-                                    const matchedFrame =
-                                        normalizedHeatmaps.find((frame) => frame.frame_idx === finding.frameIndex) ||
-                                        normalizedHeatmaps.find((frame) => frame.id?.includes?.(`Frame-${finding.frameIndex}`));
-                                    const fallbackExplanation =
-                                        topFrameExplanations.find((item) => item.frameIndex === finding.frameIndex)?.description || "-";
-                                    const [fakeProbText = finding.probabilityText || "-", realProbText = ""] =
-                                        String(finding.probabilityText || "-").split(", ");
-
-                                    return (
-                                        <tr key={`ranked-finding-${index}`} style={{ background: index % 2 === 0 ? "#fff" : "#f8fafc" }}>
-                                            <td style={S.td}>
-                                                {matchedFrame?.image ? (
-                                                    <img
-                                                        src={matchedFrame.image}
-                                                        alt={`finding-${finding.frameIndex}`}
-                                                        style={S.findingThumb}
-                                                        crossOrigin="anonymous"
-                                                    />
-                                                ) : (
-                                                    <div style={S.findingEmpty}>이미지 없음</div>
-                                                )}
-                                            </td>
-                                            <td style={{ ...S.td, textAlign: "center", fontSize: 10, fontWeight: 800 }}>
-                                                {finding.rank || index + 1}
-                                            </td>
-                                            <td style={{ ...S.td, fontSize: 10, fontWeight: 800, color: "#dc2626" }}>
-                                                Frame {finding.frameIndex}
-                                            </td>
-                                            <td style={{ ...S.td, fontSize: 10, lineHeight: 1.7 }}>
-                                                <div>{fakeProbText}</div>
-                                                {realProbText ? (
-                                                    <div style={{ marginTop: 4, color: "#475569" }}>{realProbText}</div>
-                                                ) : null}
-                                            </td>
-                                            <td style={{ ...S.td, fontSize: 10, lineHeight: 1.7 }}>
-                                                {finding.analysisText || fallbackExplanation}
-                                            </td>
-                                        </tr>
-                                    );
-                                })}
-                            </tbody>
-                        </table>
-                    )}
-
-                    {frameAnalysisClosing && (
-                        <div
-                            style={{
-                                fontSize: 10,
-                                color: "#475569",
-                                lineHeight: 1.7,
-                                marginTop: 10,
-                                padding: "10px 12px",
-                                border: "1px solid #e2e8f0",
-                                borderRadius: 6,
-                                background: "#f8fafc",
-                            }}
-                        >
-                            {frameAnalysisClosing}
-                        </div>
-                    )}
-
-                    {false && forensicFrameFindings.length > 0 && (
-                        // forensicOpinion에서 파싱한 프레임 근거를 heatmap 이미지와 매칭해 표로 출력
-                        <table style={S.findingTable}>
-                            <thead>
-                                <tr>
-                                    <th style={{ ...S.th, width: "96px" }}>이미지</th>
-                                    <th style={{ ...S.th, width: "120px" }}>확률</th>
-                                    <th style={S.th}>분석 내용</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                {forensicFrameFindings.map((finding, index) => {
-                                    // 프레임 번호 우선, 파일명 보조 기준으로 히트맵 이미지 매칭
-                                    const matchedFrame =
-                                        normalizedHeatmaps.find((frame) => frame.frame_idx === finding.frameIndex) ||
-                                        normalizedHeatmaps.find((frame) => frame.sourceImage?.includes?.(finding.imageName)) ||
-                                        normalizedHeatmaps.find((frame) => frame.image?.includes?.(finding.imageName));
-
-                                    return (
-                                        <tr key={`finding-${index}`} style={{ background: index % 2 === 0 ? "#fff" : "#f8fafc" }}>
-                                            <td style={S.td}>
-                                                {matchedFrame?.image ? (
-                                                    <img
-                                                        src={matchedFrame.image}
-                                                        alt={`finding-${finding.frameIndex}`}
-                                                        style={S.findingThumb}
-                                                        crossOrigin="anonymous"
-                                                    />
-                                                ) : (
-                                                    <div style={S.findingEmpty}>이미지 없음</div>
-                                                )}
-                                            </td>
-                                            <td style={{ ...S.td, fontSize: 10, fontWeight: 800, color: "#dc2626" }}>
-                                                Frame {finding.frameIndex}
-                                                <div style={{ color: "#475569", marginTop: 4 }}>
-                                                    {finding.probabilityText || "-"}
-                                                </div>
-                                            </td>
-                                            <td style={{ ...S.td, fontSize: 10, lineHeight: 1.7 }}>
-                                                {finding.analysisText || "-"}
-                                            </td>
-                                        </tr>
-                                    );
-                                })}
-                            </tbody>
-                        </table>
-                    )}
-
-                    {false && topFrameExplanations.length > 0 && (
-                        <table style={S.findingTable}>
-                            <thead>
-                                <tr>
-                                    <th style={{ ...S.th, width: "74px" }}>순위</th>
-                                    <th style={{ ...S.th, width: "92px" }}>프레임</th>
-                                    <th style={{ ...S.th, width: "110px" }}>위조 확률</th>
-                                    <th style={S.th}>상위 4개 프레임별 설명</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                {topFrameExplanations.map((item, index) => (
-                                    <tr key={`top-frame-explanation-${item.frameIndex}`} style={{ background: index % 2 === 0 ? "#fff" : "#f8fafc" }}>
-                                        <td style={{ ...S.td, textAlign: "center", fontWeight: 800 }}>
-                                            {item.rank}
+                                {frameFindings.map((finding, idx) => (
+                                    <tr key={idx} style={{ background: idx % 2 === 0 ? "#fff" : "#f8fafc" }}>
+                                        <td style={{ ...S.td, textAlign: "center", fontWeight: 800, color: "#1e3a8a" }}>
+                                            {finding.frame_rank ?? idx + 1}위
                                         </td>
-                                        <td style={{ ...S.td, fontSize: 10, fontWeight: 700 }}>
-                                            Frame {item.frameIndex}
+                                        <td style={{ ...S.td, textAlign: "center" }}>
+                                            <span style={{ fontWeight: 800, color: "#dc2626" }}>
+                                                {Number(finding.fake_prob ?? 0).toFixed(2)}%
+                                            </span>
                                         </td>
-                                        <td style={{ ...S.td, fontSize: 10, color: "#dc2626", fontWeight: 800 }}>
-                                            {item.probabilityText}
-                                        </td>
-                                        <td style={{ ...S.td, fontSize: 10, lineHeight: 1.7 }}>
-                                            {item.description}
+                                        <td style={{ ...S.td, fontSize: 10, lineHeight: 1.6 }}>
+                                            {finding.소견}
                                         </td>
                                     </tr>
                                 ))}
                             </tbody>
                         </table>
-                    )}
-                </div>
+                    </div>
+                )}
 
                 <div style={{ marginBottom: 14 }}>
                     <div style={S.sectionTitle}>
@@ -2039,7 +1268,6 @@ export default function PrintableReport({
                         }}
                     >
                         <div style={{ fontSize: 11, lineHeight: 1.9, color: "#374151", whiteSpace: "pre-line" }}>
-                            {/* finalOpinion 파싱 실패 시 자동 생성 템플릿 문구를 사용한다. */}
                             {finalOpinion || `본 영상은 ${verdictText}으로 판정되었으며, 전체 판별 신뢰도는 ${analysisData.overall_confidence_percent.toFixed(1)}%입니다.
 최고 의심 프레임은 Frame ${inlineFrameStats.peakIdx}이며, 위험 구간은 총 ${inlineFrameStats.dangerCount}개 감지되었습니다.
 상위 의심 프레임 전후 구간을 중심으로 얼굴 경계, 배경 이음새, 질감 불연속성, 조명 일관성을 추가 확인하는 것이 권장됩니다.
@@ -2082,7 +1310,6 @@ export default function PrintableReport({
 
             {/* 히트맵 상세 페이지들 */}
             {heatmapChunks.map((chunk, chunkIdx) => (
-                // 프레임 히트맵은 6개 단위로 별도 페이지를 생성한다.
                 <div
                     key={`heatmap-page-${chunkIdx}`}
                     style={{ ...S.page, marginTop: 0 }}
@@ -2108,6 +1335,24 @@ export default function PrintableReport({
                         <div style={S.sectionTitle}>
                             히트맵 이미지 <span style={S.sectionEn}>Heatmap Visualization</span>
                         </div>
+                        <div style={S.hmLegend}>
+                            <div style={S.hmLegendTitle}>히트맵 색상 해석 기준</div>
+
+                            <div style={S.hmLegendDesc}>
+                                색상은 프레임 내 AI 조작 의심 영역의 상대적 강도를 의미하며,
+                                빨강에 가까울수록 해당 위치의 AI 의심도가 높습니다.
+                            </div>
+
+                            <div style={S.hmLegendBar} />
+
+                            <div style={S.hmLegendScale}>
+                                <span>0%</span>
+                                <span>25%</span>
+                                <span>50%</span>
+                                <span>75%</span>
+                                <span>100%</span>
+                            </div>
+                        </div>
 
                         <div style={{ fontSize: 10, color: "#64748b", marginBottom: 10 }}>
                             프레임 {chunk[0]?.frame_idx} ~ {chunk[chunk.length - 1]?.frame_idx}
@@ -2115,9 +1360,7 @@ export default function PrintableReport({
 
                         <div style={S.hmGrid}>
                             {chunk.map((frame) => (
-                                // 이미지가 없더라도 카드 구조를 유지해 페이지 높이 흔들림을 방지한다.
                                 <div key={`${frame.frame_idx}-${frame.id}`} style={S.hmCard}>
-                                    <div style={S.hmMedia}>
                                     {frame.image ? (
                                         <img
                                             src={frame.image}
@@ -2131,7 +1374,6 @@ export default function PrintableReport({
                                             <div>히트맵 이미지 없음</div>
                                         </div>
                                     )}
-                                    </div>
 
                                     <div style={S.hmMeta}>
                                         <div
@@ -2192,54 +1434,6 @@ export default function PrintableReport({
                     </div>
                 </div>
             ))}
-
-            {comparisonNotes.length > 0 && (
-                // PDF/JSON 결과 차이를 사람이 검토할 수 있게 마지막 메모 페이지를 옵션으로 붙인다.
-                <div style={{ ...S.page, marginTop: 0 }} className="pdf-page">
-                    <div style={S.brandBar}>
-                        <div style={S.brandLeft}>
-                            <div style={{ display: "flex", alignItems: "baseline", gap: 10 }}>
-                                <span style={S.brandTitle}>DeepFake Analyzer</span>
-                                <span style={{ fontSize: 10, color: "#94a3b8" }}>
-                                    JSON Comparison Notes
-                                </span>
-                            </div>
-                            <span style={S.brandSub}>PDF와 JSON 결과 대조 메모</span>
-                        </div>
-                        <div style={S.brandRight}>
-                            <div style={S.brandModel}>{analysisData.analysis_id}</div>
-                            <div style={S.brandDate}>{reportDate}</div>
-                        </div>
-                    </div>
-
-                    <div style={S.sectionTitle}>
-                        대조 메모 <span style={S.sectionEn}>Comparison Notes</span>
-                    </div>
-
-                    <div
-                        style={{
-                            border: "1px solid #e2e8f0",
-                            borderRadius: 8,
-                            padding: "16px 18px",
-                            background: "#fff",
-                        }}
-                    >
-                        <ul style={S.compareList}>
-                            {comparisonNotes.map((note, index) => (
-                                <li key={`compare-note-${index}`}>{note}</li>
-                            ))}
-                        </ul>
-                    </div>
-
-                    <div style={S.footer}>
-                        <span>PDF/JSON 대조 메모</span>
-                        <span>
-                            생성일시: {reportDate} · 분석 ID: {analysisData.analysis_id} · {totalPdfPages} / {totalPdfPages} Page
-                        </span>
-                    </div>
-                </div>
-            )}
-
         </div>
     );
 }
