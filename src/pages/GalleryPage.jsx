@@ -327,32 +327,6 @@ function waitForImagesToLoad(root) {
     );
 }
 
-function buildPdfComparisonNotes(analysisData, displayTitle, reportPayload, forensicOpinion) {
-    const notes = [];
-    const pdfTitle = displayTitle || analysisData.filename || "-";
-    const jsonFileName = analysisData.filename || "-";
-    const decisiveCount = Array.isArray(analysisData.decisive_frames) ? analysisData.decisive_frames.length : 0;
-    const otherCount = Array.isArray(analysisData.other_frames) ? analysisData.other_frames.length : 0;
-    const detailCount = Array.isArray(analysisData.detailed_analysis) ? analysisData.detailed_analysis.length : 0;
-
-    notes.push(`PDF 표시 제목: ${pdfTitle}`);
-    notes.push(`JSON filename: ${jsonFileName}`);
-    if (pdfTitle !== jsonFileName) {
-        notes.push(`표시 제목과 JSON filename이 다릅니다.`);
-    }
-    notes.push(`JSON final_prediction: ${analysisData.final_prediction}`);
-    notes.push(`JSON overall_confidence_percent: ${Number(analysisData.overall_confidence_percent ?? 0).toFixed(2)}%`);
-    if (analysisData.process_time_seconds) {
-        notes.push(`JSON process_time_seconds: ${analysisData.process_time_seconds}s`);
-    }
-    notes.push(`JSON detailed_analysis 항목 수: ${detailCount}`);
-    notes.push(`JSON decisive_frames 수: ${decisiveCount}`);
-    notes.push(`JSON other_frames 수: ${otherCount}`);
-    notes.push(`REPORT payload filename: ${reportPayload?.filename || "-"}`);
-    notes.push(`REPORT forensic_opinion 존재 여부: ${forensicOpinion ? "있음" : "없음"}`);
-
-    return notes;
-}
 
 function buildChartTooltipFrame(frame, heatmapFrame) {
     if (!frame) return null;
@@ -1391,18 +1365,12 @@ export default function GalleryPage() {
                 );
                 flushSync(() => {
                     setForensicOpinion(nextForensicOpinion);
-                    setPdfComparisonNotes(
-                        buildPdfComparisonNotes(analysisData, displayTitle, reportPayload, nextForensicOpinion)
-                    );
                     setPdfHeatmapFrames(nextPdfHeatmaps);
                 });
             } catch (reportError) {
                 console.error(reportError);
                 flushSync(() => {
                     setForensicOpinion("");
-                    setPdfComparisonNotes(
-                        buildPdfComparisonNotes(analysisData, displayTitle, reportPayload, "")
-                    );
                     setPdfHeatmapFrames(displayHeatmapFrames);
                 });
             }
