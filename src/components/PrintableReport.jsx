@@ -491,12 +491,7 @@ export default function PrintableReport({
             borderRadius: 999,
             marginBottom: 5,
             border: "1px solid #e2e8f0",
-            background: "linear-gradient(to right, \
-        #2563eb 0%, \
-        #22c55e 25%, \
-        #facc15 50%, \
-        #f97316 75%, \
-        #dc2626 100%)",
+            background: "linear-gradient(to right, #2563eb 0%, #22c55e 25%, #facc15 50%, #f97316 75%, #dc2626 100%)",
         },
 
         hmLegendScale: {

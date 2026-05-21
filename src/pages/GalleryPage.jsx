@@ -1185,7 +1185,6 @@ export default function GalleryPage() {
     const [menuOpen, setMenuOpen] = useState(false);
     const [forensicOpinion, setForensicOpinion] = useState(() => (hasInjectedAnalysis ? "" : MOCK_FORENSIC_OPINION));
     const [pdfHeatmapFrames, setPdfHeatmapFrames] = useState([]);
-    const [pdfComparisonNotes, setPdfComparisonNotes] = useState([]);
     const [hoveredInlineFrame, setHoveredInlineFrame] = useState(null);
     const inlineTooltipSize = { width: 240, height: 236 };
 
