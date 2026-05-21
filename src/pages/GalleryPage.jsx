@@ -246,7 +246,10 @@ function normalizeAnalysisData(rawAnalysis, selectedModel = "") {
             (processTimeSeconds > 0 ? `${processTimeSeconds.toFixed(1)}초` : MOCK_ANALYSIS.analysis_time),
         timeline_chart: timelineChart.length > 0 ? timelineChart : MOCK_ANALYSIS.timeline_chart,
         detailed_analysis: Array.isArray(rawAnalysis.detailed_analysis)
-            ? rawAnalysis.detailed_analysis
+            ? rawAnalysis.detailed_analysis.map((item, i) => ({
+                ...item,
+                what_this_means: item.what_this_means || MOCK_ANALYSIS.detailed_analysis[i]?.what_this_means || "",
+            }))
             : MOCK_ANALYSIS.detailed_analysis,
         decisive_frames: decisiveFrames,
         other_frames: otherFrames,
