@@ -281,6 +281,10 @@ export default function PrintableReport({
     const spatiotemporalAnalysis = forensicData?.시공간_일관성_수치_분석 ?? "";
     const technicalRisk = forensicData?.기술적_위험도_평가 ?? null;
     const finalOpinion = forensicData?.최종_감정_의견 ?? "";
+    const allDecisiveFrames = [
+        ...(analysisData.decisive_frames ?? []),
+        ...(analysisData.other_frames ?? []),
+    ];
 
     const totalPdfPages = 2 + heatmapChunks.length;
 
@@ -459,8 +463,8 @@ export default function PrintableReport({
 
         hmGrid: {
             display: "grid",
-            gridTemplateColumns: "repeat(2, 1fr)",
-            gap: 12,
+            gridTemplateColumns: "repeat(3, 1fr)",
+            gap: 8,
         },
         hmLegend: {
             border: "1px solid #e2e8f0",
@@ -526,14 +530,14 @@ export default function PrintableReport({
         },
         hmImg: {
             width: "100%",
-            height: 170,
+            height: 423,
             objectFit: "cover",
             display: "block",
             background: "#e2e8f0",
         },
         hmEmpty: {
             width: "100%",
-            height: 170,
+            height: 423,
             background: "#f8fafc",
             display: "flex",
             alignItems: "center",
@@ -1075,7 +1079,7 @@ export default function PrintableReport({
                             </tr>
                         </thead>
                         <tbody>
-                            {publicItems.map((item, idx) => (
+                            {!forensicData && publicItems.map((item, idx) => (
                                 <tr key={idx} style={{ background: idx % 2 === 0 ? "#fff" : "#f8fafc" }}>
                                     <td style={{ ...S.td, fontWeight: 700 }}>{item.title}</td>
                                     <td style={{ ...S.td, textAlign: "center" }}>
@@ -1097,32 +1101,47 @@ export default function PrintableReport({
                                 </tr>
                             ))}
                             {textureAnalysis && (
-                                <tr style={{ background: publicItems.length % 2 === 0 ? "#fff" : "#f8fafc" }}>
+                                <tr style={{ background: "#fff" }}>
                                     <td style={{ ...S.td, fontWeight: 700 }}>텍스처 일관성 분석</td>
                                     <td style={{ ...S.td, textAlign: "center" }}>
                                         <RiskBadge level={technicalRisk?.위험도 ?? "HIGH"} />
                                     </td>
-                                    <td style={{ ...S.td, fontSize: 9, color: "#94a3b8" }}>—</td>
+                                    <td style={S.td}>
+                                        <MiniBar
+                                            value={analysisData.overall_confidence_percent}
+                                            color="#dc2626"
+                                        />
+                                    </td>
                                     <td style={{ ...S.td, fontSize: 10, lineHeight: 1.5 }}>{textureAnalysis}</td>
                                 </tr>
                             )}
                             {spatiotemporalAnalysis && (
-                                <tr style={{ background: (publicItems.length + 1) % 2 === 0 ? "#fff" : "#f8fafc" }}>
+                                <tr style={{ background: "#f8fafc" }}>
                                     <td style={{ ...S.td, fontWeight: 700 }}>시공간 일관성 분석</td>
                                     <td style={{ ...S.td, textAlign: "center" }}>
                                         <RiskBadge level={technicalRisk?.위험도 ?? "HIGH"} />
                                     </td>
-                                    <td style={{ ...S.td, fontSize: 9, color: "#94a3b8" }}>—</td>
+                                    <td style={S.td}>
+                                        <MiniBar
+                                            value={analysisData.overall_confidence_percent}
+                                            color="#dc2626"
+                                        />
+                                    </td>
                                     <td style={{ ...S.td, fontSize: 10, lineHeight: 1.5 }}>{spatiotemporalAnalysis}</td>
                                 </tr>
                             )}
                             {technicalRisk?.근거 && (
-                                <tr style={{ background: (publicItems.length + 2) % 2 === 0 ? "#fff" : "#f8fafc" }}>
+                                <tr style={{ background: "#fff" }}>
                                     <td style={{ ...S.td, fontWeight: 700 }}>기술적 위험도 평가</td>
                                     <td style={{ ...S.td, textAlign: "center" }}>
                                         <RiskBadge level={technicalRisk.위험도 ?? "HIGH"} />
                                     </td>
-                                    <td style={{ ...S.td, fontSize: 9, color: "#94a3b8" }}>—</td>
+                                    <td style={S.td}>
+                                        <MiniBar
+                                            value={analysisData.overall_confidence_percent}
+                                            color="#dc2626"
+                                        />
+                                    </td>
                                     <td style={{ ...S.td, fontSize: 10, lineHeight: 1.5 }}>{technicalRisk.근거}</td>
                                 </tr>
                             )}
@@ -1223,27 +1242,31 @@ export default function PrintableReport({
                         <table style={S.table}>
                             <thead>
                                 <tr>
-                                    <th style={{ ...S.th, width: "6%", textAlign: "center" }}>순위</th>
+                                    <th style={{ ...S.th, width: "10%", textAlign: "center" }}>프레임 번호</th>
                                     <th style={{ ...S.th, width: "14%", textAlign: "center" }}>위조 확률</th>
                                     <th style={S.th}>소견</th>
                                 </tr>
                             </thead>
                             <tbody>
-                                {frameFindings.map((finding, idx) => (
-                                    <tr key={idx} style={{ background: idx % 2 === 0 ? "#fff" : "#f8fafc" }}>
-                                        <td style={{ ...S.td, textAlign: "center", fontWeight: 800, color: "#1e3a8a" }}>
-                                            {finding.frame_rank ?? idx + 1}위
-                                        </td>
-                                        <td style={{ ...S.td, textAlign: "center" }}>
-                                            <span style={{ fontWeight: 800, color: "#dc2626" }}>
-                                                {Number(finding.fake_prob ?? 0).toFixed(2)}%
-                                            </span>
-                                        </td>
-                                        <td style={{ ...S.td, fontSize: 10, lineHeight: 1.6 }}>
-                                            {finding.소견}
-                                        </td>
-                                    </tr>
-                                ))}
+                                {frameFindings.map((finding, idx) => {
+                                    const matched = allDecisiveFrames.find(f => f.sample_no === finding.sample_no);
+                                    const frameNo = matched?.frame_index ?? matched?.frame_idx ?? finding.sample_no ?? "-";
+                                    return (
+                                        <tr key={idx} style={{ background: idx % 2 === 0 ? "#fff" : "#f8fafc" }}>
+                                            <td style={{ ...S.td, textAlign: "center", fontWeight: 800, color: "#1e3a8a" }}>
+                                                Frame {frameNo}
+                                            </td>
+                                            <td style={{ ...S.td, textAlign: "center" }}>
+                                                <span style={{ fontWeight: 800, color: "#dc2626" }}>
+                                                    {Number(finding.fake_prob ?? 0).toFixed(2)}%
+                                                </span>
+                                            </td>
+                                            <td style={{ ...S.td, fontSize: 10, lineHeight: 1.6 }}>
+                                                {finding.소견}
+                                            </td>
+                                        </tr>
+                                    );
+                                })}
                             </tbody>
                         </table>
                     </div>
