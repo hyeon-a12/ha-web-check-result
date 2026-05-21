@@ -1077,79 +1077,62 @@ export default function PrintableReport({
                     </div>
 
                     <table style={S.table}>
-                        <thead>
-                            <tr>
-                                <th style={{ ...S.th, width: "24%" }}>항목</th>
-                                <th style={{ ...S.th, width: "11%", textAlign: "center" }}>위험도</th>
-                                <th style={{ ...S.th, width: "14%" }}>점수</th>
-                                <th style={S.th}>설명</th>
-                            </tr>
-                        </thead>
                         <tbody>
-                            {publicItems.map((item, idx) => (
-                                <tr key={idx} style={{ background: idx % 2 === 0 ? "#fff" : "#f8fafc" }}>
-                                    <td style={{ ...S.td, fontWeight: 700 }}>{item.title}</td>
-                                    <td style={{ ...S.td, textAlign: "center" }}>
-                                        <RiskBadge level={item.risk_level} />
-                                    </td>
-                                    <td style={S.td}>
-                                        <MiniBar
-                                            value={item.score_percent}
-                                            color={
-                                                item.score_percent >= 70 ? "#dc2626" :
-                                                    item.score_percent >= 50 ? "#f59e0b" :
-                                                        "#1d4ed8"
-                                            }
-                                        />
-                                    </td>
-                                    <td style={{ ...S.td, fontSize: 10, lineHeight: 1.5 }}>
-                                        {item.description}
-                                    </td>
-                                </tr>
-                            ))}
-                            {textureAnalysis && (
-                                <tr style={{ background: "#fff" }}>
-                                    <td style={{ ...S.td, fontWeight: 700 }}>텍스처 일관성 분석</td>
-                                    <td style={{ ...S.td, textAlign: "center" }}>
-                                        <RiskBadge level={technicalRisk?.위험도 ?? "HIGH"} />
-                                    </td>
-                                    <td style={S.td}>
-                                        <MiniBar
-                                            value={analysisData.overall_confidence_percent}
-                                            color="#dc2626"
-                                        />
-                                    </td>
-                                    <td style={{ ...S.td, fontSize: 10, lineHeight: 1.5 }}>{textureAnalysis}</td>
-                                </tr>
-                            )}
-                            {spatiotemporalAnalysis && (
+                            <tr>
+                                <td style={{ ...S.th, width: "24%" }}>항목</td>
+                                <td style={{ ...S.th, width: "11%", textAlign: "center" }}>위험도</td>
+                                <td style={{ ...S.th, width: "14%" }}>점수</td>
+                                <td style={S.th}>설명</td>
+                            </tr>
+                            {/* Row 1: 시공간 일관성 분석 - 위험도/점수는 detailed_analysis[0] 사용, 설명은 기존 유지 */}
+                            {spatiotemporalAnalysis && publicItems[0] && (
                                 <tr style={{ background: "#f8fafc" }}>
                                     <td style={{ ...S.td, fontWeight: 700 }}>시공간 일관성 분석</td>
                                     <td style={{ ...S.td, textAlign: "center" }}>
-                                        <RiskBadge level={technicalRisk?.위험도 ?? "HIGH"} />
+                                        <RiskBadge level={publicItems[0].risk_level} />
                                     </td>
                                     <td style={S.td}>
                                         <MiniBar
-                                            value={analysisData.overall_confidence_percent}
-                                            color="#dc2626"
+                                            value={publicItems[0].score_percent}
+                                            color={
+                                                publicItems[0].score_percent >= 70 ? "#dc2626" :
+                                                    publicItems[0].score_percent >= 50 ? "#f59e0b" :
+                                                        "#1d4ed8"
+                                            }
                                         />
                                     </td>
                                     <td style={{ ...S.td, fontSize: 10, lineHeight: 1.5 }}>{spatiotemporalAnalysis}</td>
                                 </tr>
                             )}
+                            {/* Row 3: 기술적 위험도 평가 - 위험도는 report JSON, 점수는 "-" */}
                             {technicalRisk?.근거 && (
                                 <tr style={{ background: "#fff" }}>
                                     <td style={{ ...S.td, fontWeight: 700 }}>기술적 위험도 평가</td>
                                     <td style={{ ...S.td, textAlign: "center" }}>
                                         <RiskBadge level={technicalRisk.위험도 ?? "HIGH"} />
                                     </td>
+                                    <td style={{ ...S.td, textAlign: "center", color: "#6b7280" }}>-</td>
+                                    <td style={{ ...S.td, fontSize: 10, lineHeight: 1.5 }}>{technicalRisk.근거}</td>
+                                </tr>
+                            )}
+                            {/* Row 4: 텍스처 일관성 분석 - 위험도/점수는 detailed_analysis[1] 사용, 설명은 기존 유지 */}
+                            {textureAnalysis && publicItems[1] && (
+                                <tr style={{ background: "#f8fafc" }}>
+                                    <td style={{ ...S.td, fontWeight: 700 }}>텍스처 일관성 분석</td>
+                                    <td style={{ ...S.td, textAlign: "center" }}>
+                                        <RiskBadge level={publicItems[1].risk_level} />
+                                    </td>
                                     <td style={S.td}>
                                         <MiniBar
-                                            value={analysisData.overall_confidence_percent}
-                                            color="#dc2626"
+                                            value={publicItems[1].score_percent}
+                                            color={
+                                                publicItems[1].score_percent >= 70 ? "#dc2626" :
+                                                    publicItems[1].score_percent >= 50 ? "#f59e0b" :
+                                                        "#1d4ed8"
+                                            }
                                         />
                                     </td>
-                                    <td style={{ ...S.td, fontSize: 10, lineHeight: 1.5 }}>{technicalRisk.근거}</td>
+                                    <td style={{ ...S.td, fontSize: 10, lineHeight: 1.5 }}>{textureAnalysis}</td>
                                 </tr>
                             )}
                         </tbody>
