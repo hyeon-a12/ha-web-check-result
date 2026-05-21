@@ -729,11 +729,22 @@ function buildDisplayHeatmapFrames(analysisData, externalHeatmaps = []) {
     const rawHeatmaps =
         externalHeatmaps.length > 0
             ? externalHeatmaps
-            : analysisData.heatmap_frames ?? [];
+            : (
+                analysisData.heatmap_frames ??
+                [
+                    ...(analysisData.decisive_frames ?? []),
+                    ...(analysisData.other_frames ?? []),
+                ]
+            );
 
     return timeline.map((frame, idx) => {
         const matched =
-            rawHeatmaps.find((h) => h.frame_idx === frame.frame_idx) ||
+            rawHeatmaps.find(
+                (h) =>
+                    h.frame_idx === frame.frame_idx ||
+                    h.frame_index === frame.frame_idx ||
+                    h.sample_no === frame.sample_no
+            ) ||
             rawHeatmaps[idx] ||
             null;
 
@@ -745,8 +756,8 @@ function buildDisplayHeatmapFrames(analysisData, externalHeatmaps = []) {
             frame_idx: frame.frame_idx,
             fake_prob: fakeProb,
             real_prob: realProb,
-            image: matched?.image ?? null,
-            sourceImage: matched?.sourceImage ?? matched?.image ?? null,
+            image: matched?.image ?? matched?.image_url ?? null,
+            sourceImage: matched?.sourceImage ?? matched?.image ?? matched?.image_url ?? null,
             risk:
                 frame.risk ??
                 (fakeProb >= 70 ? "높음" : fakeProb >= 50 ? "중간" : "낮음"),
@@ -806,6 +817,48 @@ function getPdfFileFormatDisplay(analysisData, fallbackExt) {
         compact: false,
     };
 }
+
+function buildForensicOpinionMarkdown(forensicOpinion) {
+    if (!forensicOpinion) return "";
+    if (typeof forensicOpinion === "string") return forensicOpinion;
+
+    const opinion = forensicOpinion.forensic_opinion ?? forensicOpinion;
+    if (!opinion || typeof opinion !== "object") return "";
+
+    const lines = [];
+    lines.push("### 1. 분석 개요 및 대상");
+    lines.push(opinion.분석_개요_및_대상 || "");
+    lines.push("");
+    lines.push("### 2. 주요 조작 징후 프레임별 분석");
+
+    const frameFindings = Array.isArray(opinion.주요_조작_징후_프레임별_분석)
+        ? opinion.주요_조작_징후_프레임별_분석
+        : [];
+
+    frameFindings.forEach((item) => {
+        const frameIndex = item.frame_idx ?? item.frame_index ?? item.sample_no ?? 0;
+        lines.push(`프레임 ${frameIndex} (Rank ${item.frame_rank ?? "-" }):`);
+        lines.push(`fake_prob: ${Number(item.fake_prob ?? 0).toFixed(2)}%, real_prob: ${Number(100 - Number(item.fake_prob ?? 0)).toFixed(2)}%`);
+        lines.push(`이미지 분석: ${item.소견 || ""}`);
+        lines.push("");
+    });
+
+    lines.push("### 3. 기술적 위험도 평가");
+    if (opinion.텍스처_일관성_수치_분석) {
+        lines.push(opinion.텍스처_일관성_수치_분석);
+    }
+    if (opinion.시공간_일관성_수치_분석) {
+        lines.push(opinion.시공간_일관성_수치_분석);
+    }
+    if (opinion.기술적_위험도_평가?.위험도 || opinion.기술적_위험도_평가?.근거) {
+        lines.push(`* 기술적 위험도 ${opinion.기술적_위험도_평가?.위험도 || ""}: ${opinion.기술적_위험도_평가?.근거 || ""}`);
+    }
+    lines.push("");
+    lines.push("### 4. 최종 감정 의견");
+    lines.push(opinion.최종_감정_의견 || "");
+
+    return lines.join("\n").trim();
+}
 export default function PrintableReport({
     analysisData,
     inlineFrameStats,
@@ -829,11 +882,15 @@ export default function PrintableReport({
     const fileExt = analysisData.filename?.split(".").pop()?.toLowerCase() || "mp4";
     const fileFormatDisplay = getPdfFileFormatDisplay(analysisData, fileExt);
     // 백엔드 응답에 모델 목록이 없을 때를 대비해 기본 모델명을 사용한다.
-    const modelNames = analysisData.model_names ?? [
-        "Vision Transformer",
-        "ResNet-50",
-        "XceptionNet",
-    ];
+    const modelNames = Array.isArray(analysisData.model_names) && analysisData.model_names.length > 0
+        ? analysisData.model_names
+        : analysisData.model_used
+            ? [analysisData.model_used]
+            : [
+                "Vision Transformer",
+                "ResNet-50",
+                "XceptionNet",
+            ];
 
     const sortedFramesDesc = [...timelineChart].sort((a, b) => b.fake_prob - a.fake_prob);
     // 상위 위험 프레임은 하이라이트 카드(오렌지 점) 표시 여부 판단에 사용한다.
@@ -860,14 +917,15 @@ export default function PrintableReport({
     );
     // 마크다운 forensic 의견을 PDF 표시용 구조로 변환한다.
     const heatmapChunks = chunkArray(normalizedHeatmaps, 6);
+    const forensicOpinionText = buildForensicOpinionMarkdown(forensicOpinion);
     const finalOpinion =
-        sanitizePdfOpinionText(extractPdfFinalOpinion(forensicOpinion)) ||
+        sanitizePdfOpinionText(extractPdfFinalOpinion(forensicOpinionText)) ||
         " ";
-    const forensicFrameFindings = parseRankedFrameAnalysisV6(forensicOpinion);
-    const technicalRiskAssessments = parseTechnicalRiskAssessmentsSafe(forensicOpinion);
-    const technicalRiskIntro = extractTechnicalRiskIntroSafe(forensicOpinion);
-    const frameAnalysisIntro = extractFrameAnalysisIntroV5(forensicOpinion);
-    const frameAnalysisClosing = extractFrameAnalysisClosingV4(forensicOpinion);
+    const forensicFrameFindings = parseRankedFrameAnalysisV6(forensicOpinionText);
+    const technicalRiskAssessments = parseTechnicalRiskAssessmentsSafe(forensicOpinionText);
+    const technicalRiskIntro = extractTechnicalRiskIntroSafe(forensicOpinionText);
+    const frameAnalysisIntro = extractFrameAnalysisIntroV5(forensicOpinionText);
+    const frameAnalysisClosing = extractFrameAnalysisClosingV4(forensicOpinionText);
     const detailItems = technicalRiskAssessments.length > 0
         ? technicalRiskAssessments
         : publicItems.map((item) => ({

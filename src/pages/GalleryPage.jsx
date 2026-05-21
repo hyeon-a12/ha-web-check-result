@@ -12,89 +12,118 @@ import { fetchAnalyzeReport, fetchNgrokImage, resolveGalleryImageUrl } from "../
 // 임시 JSON 데이터 (실제 서비스에서는 API 응답으로 교체)
 // ─────────────────────────────────────────────────────────────
 const MOCK_ANALYSIS = {
-    analysis_id: "H200_20260312170203",
-    filename: "test_0006_(북한 실제영상) 평양의 아침 8시30분 풍경은 어떨까？.mp4",
-    final_prediction: "REAL",
-    overall_confidence_percent: 85.82,
-    analysis_time: "14.2초",
+    analysis_id: "ANL_EFF_1779280811",
+    model_used: "EfficientNet-B0 + ScoreCAM",
+    filename: "link_video.mp4",
+    final_prediction: "FAKE",
+    overall_confidence_percent: 99.15,
+    process_time_seconds: 28.13,
+    analysis_time: "28.1초",
     video_duration: "2분 34초",
     resolution: "1920×1080",
     frame_rate: "30fps",
     file_size: "245MB",
-    model_names: ["Vision Transformer", "ResNet-50", "XceptionNet"],
+    model_names: ["EfficientNet-B0 + ScoreCAM"],
     timeline_chart: [
-        { frame_idx: 1, fake_prob: 57.16, risk: "중간", color: "yellow" },
-        { frame_idx: 2, fake_prob: 64.24, risk: "중간", color: "yellow" },
-        { frame_idx: 3, fake_prob: 50.4, risk: "중간", color: "yellow" },
-        { frame_idx: 4, fake_prob: 53.07, risk: "중간", color: "yellow" },
-        { frame_idx: 5, fake_prob: 66.79, risk: "중간", color: "yellow" },
-        { frame_idx: 6, fake_prob: 55.19, risk: "중간", color: "yellow" },
-        { frame_idx: 7, fake_prob: 41.95, risk: "낮음", color: "blue" },
-        { frame_idx: 8, fake_prob: 18.14, risk: "낮음", color: "blue" },
-        { frame_idx: 9, fake_prob: 7.09, risk: "낮음", color: "blue" },
-        { frame_idx: 10, fake_prob: 5.78, risk: "낮음", color: "blue" },
-        { frame_idx: 11, fake_prob: 2.43, risk: "낮음", color: "blue" },
-        { frame_idx: 12, fake_prob: 3.12, risk: "낮음", color: "blue" },
-        { frame_idx: 13, fake_prob: 4.5, risk: "낮음", color: "blue" },
-        { frame_idx: 14, fake_prob: 6.78, risk: "낮음", color: "blue" },
-        { frame_idx: 15, fake_prob: 9.21, risk: "낮음", color: "blue" },
-        { frame_idx: 16, fake_prob: 13.89, risk: "낮음", color: "blue" },
+        { sample_no: 1, frame_idx: 0, fake_prob: 80.42, risk: "높음", color: "red" },
+        { sample_no: 2, frame_idx: 10, fake_prob: 91.69, risk: "높음", color: "red" },
+        { sample_no: 3, frame_idx: 20, fake_prob: 94.85, risk: "높음", color: "red" },
+        { sample_no: 4, frame_idx: 31, fake_prob: 97.21, risk: "높음", color: "red" },
+        { sample_no: 5, frame_idx: 41, fake_prob: 98.14, risk: "높음", color: "red" },
+        { sample_no: 6, frame_idx: 52, fake_prob: 98.39, risk: "높음", color: "red" },
+        { sample_no: 7, frame_idx: 62, fake_prob: 98.75, risk: "높음", color: "red" },
+        { sample_no: 8, frame_idx: 73, fake_prob: 99.02, risk: "높음", color: "red" },
+        { sample_no: 9, frame_idx: 83, fake_prob: 99.22, risk: "높음", color: "red" },
+        { sample_no: 10, frame_idx: 94, fake_prob: 99.34, risk: "높음", color: "red" },
+        { sample_no: 11, frame_idx: 104, fake_prob: 99.42, risk: "높음", color: "red" },
+        { sample_no: 12, frame_idx: 115, fake_prob: 99.45, risk: "높음", color: "red" },
+        { sample_no: 13, frame_idx: 125, fake_prob: 99.47, risk: "높음", color: "red" },
+        { sample_no: 14, frame_idx: 136, fake_prob: 99.48, risk: "높음", color: "red" },
+        { sample_no: 15, frame_idx: 146, fake_prob: 99.49, risk: "높음", color: "red" },
+        { sample_no: 16, frame_idx: 157, fake_prob: 99.51, risk: "높음", color: "red" },
     ],
-    heatmap_frames: [
-        { id: "VSLN-1", frame_idx: 1, fake_prob: 99.95, real_prob: 0.05, image: null },
-        { id: "VSLN-2", frame_idx: 2, fake_prob: 92.15, real_prob: 7.85, image: null },
-        { id: "VSLN-3", frame_idx: 3, fake_prob: 98.95, real_prob: 1.05, image: null },
-        { id: "VSLN-4", frame_idx: 4, fake_prob: 88.35, real_prob: 11.65, image: null },
-        { id: "VSLN-5", frame_idx: 5, fake_prob: 96.91, real_prob: 3.09, image: null },
-        { id: "VSLN-6", frame_idx: 6, fake_prob: 82.51, real_prob: 17.49, image: null },
-        { id: "VSLN-7", frame_idx: 7, fake_prob: 77.51, real_prob: 22.49, image: null },
-        { id: "VSLN-8", frame_idx: 8, fake_prob: 60.51, real_prob: 39.49, image: null },
-        { id: "VSLN-9", frame_idx: 9, fake_prob: 54.26, real_prob: 45.74, image: null },
-        { id: "VSLN-10", frame_idx: 10, fake_prob: 57.51, real_prob: 42.49, image: null },
-        { id: "VSLN-11", frame_idx: 11, fake_prob: 35.44, real_prob: 64.56, image: null },
-        { id: "VSLN-12", frame_idx: 12, fake_prob: 27.51, real_prob: 72.49, image: null },
-        { id: "VSLN-13", frame_idx: 13, fake_prob: 48.12, real_prob: 51.88, image: null },
-        { id: "VSLN-14", frame_idx: 14, fake_prob: 70.51, real_prob: 29.49, image: null },
-        { id: "VSLN-15", frame_idx: 15, fake_prob: 52.88, real_prob: 47.12, image: null },
-        { id: "VSLN-16", frame_idx: 16, fake_prob: 65.51, real_prob: 34.49, image: null },
+    decisive_frames: [
+        { sample_no: 7, frame_index: 62, fake_prob: 98.75, real_prob: 1.25, attention_weight_percent: 6.98, cam_intensity_percent: 12.84, image_url: "/static/ANL_EFF_1779280811_r1.jpg", detection_reasons: ["딥페이크 판별 확률 98.8%로 고위험 기준(85%)을 초과 — 모델이 이 프레임을 위조로 분류할 강한 신호를 감지함.", "시계열 어텐션 가중치가 상위 10% 수준(7.0%) — GRU 기반 시계열 분석 모델이 영상 전체에서 이 프레임을 핵심 판단 근거로 선택함."], rank: 1 },
+        { sample_no: 8, frame_index: 73, fake_prob: 99.02, real_prob: 0.98, attention_weight_percent: 6.96, cam_intensity_percent: 15.42, image_url: "/static/ANL_EFF_1779280811_r2.jpg", detection_reasons: ["딥페이크 판별 확률 99.0%로 고위험 기준(85%)을 초과 — 모델이 이 프레임을 위조로 분류할 강한 신호를 감지함.", "시계열 어텐션 가중치가 상위 10% 수준(7.0%) — GRU 기반 시계열 분석 모델이 영상 전체에서 이 프레임을 핵심 판단 근거로 선택함."], rank: 2 },
+        { sample_no: 9, frame_index: 83, fake_prob: 99.22, real_prob: 0.78, attention_weight_percent: 6.92, cam_intensity_percent: 13.12, image_url: "/static/ANL_EFF_1779280811_r3.jpg", detection_reasons: ["딥페이크 판별 확률 99.2%로 고위험 기준(85%)을 초과 — 모델이 이 프레임을 위조로 분류할 강한 신호를 감지함."], rank: 3 },
+        { sample_no: 10, frame_index: 94, fake_prob: 99.34, real_prob: 0.66, attention_weight_percent: 6.9, cam_intensity_percent: 11.9, image_url: "/static/ANL_EFF_1779280811_r4.jpg", detection_reasons: ["딥페이크 판별 확률 99.3%로 고위험 기준(85%)을 초과 — 모델이 이 프레임을 위조로 분류할 강한 신호를 감지함."], rank: 4 },
     ],
+    other_frames: [
+        { sample_no: 1, frame_index: 0, fake_prob: 80.42, real_prob: 19.58, attention_weight_percent: 3.19, cam_intensity_percent: 12.44, image_url: "/static/ANL_EFF_1779280811_f0.jpg", detection_reasons: ["딥페이크 판별 확률 80.4%로 중위험 구간에 해당 — 단독으로는 확정적이지 않으나 다른 지표와 복합 시 유의미한 징후."] },
+        { sample_no: 2, frame_index: 10, fake_prob: 91.69, real_prob: 8.31, attention_weight_percent: 4.3, cam_intensity_percent: 14.26, image_url: "/static/ANL_EFF_1779280811_f10.jpg", detection_reasons: ["딥페이크 판별 확률 91.7%로 고위험 기준(85%)을 초과 — 모델이 이 프레임을 위조로 분류할 강한 신호를 감지함."] },
+        { sample_no: 3, frame_index: 20, fake_prob: 94.85, real_prob: 5.15, attention_weight_percent: 5.32, cam_intensity_percent: 10.34, image_url: "/static/ANL_EFF_1779280811_f20.jpg", detection_reasons: ["딥페이크 판별 확률 94.8%로 고위험 기준(85%)을 초과 — 모델이 이 프레임을 위조로 분류할 강한 신호를 감지함."] },
+        { sample_no: 4, frame_index: 31, fake_prob: 97.21, real_prob: 2.79, attention_weight_percent: 6.11, cam_intensity_percent: 14.15, image_url: "/static/ANL_EFF_1779280811_f31.jpg", detection_reasons: ["딥페이크 판별 확률 97.2%로 고위험 기준(85%)을 초과 — 모델이 이 프레임을 위조로 분류할 강한 신호를 감지함."] },
+        { sample_no: 5, frame_index: 41, fake_prob: 98.14, real_prob: 1.86, attention_weight_percent: 6.45, cam_intensity_percent: 12.63, image_url: "/static/ANL_EFF_1779280811_f41.jpg", detection_reasons: ["딥페이크 판별 확률 98.1%로 고위험 기준(85%)을 초과 — 모델이 이 프레임을 위조로 분류할 강한 신호를 감지함."] },
+        { sample_no: 6, frame_index: 52, fake_prob: 98.39, real_prob: 1.61, attention_weight_percent: 6.74, cam_intensity_percent: 12.84, image_url: "/static/ANL_EFF_1779280811_f52.jpg", detection_reasons: ["딥페이크 판별 확률 98.4%로 고위험 기준(85%)을 초과 — 모델이 이 프레임을 위조로 분류할 강한 신호를 감지함."] },
+        { sample_no: 11, frame_index: 104, fake_prob: 99.42, real_prob: 0.58, attention_weight_percent: 6.86, cam_intensity_percent: 10.45, image_url: "/static/ANL_EFF_1779280811_f104.jpg", detection_reasons: ["딥페이크 판별 확률 99.4%로 고위험 기준(85%)을 초과 — 모델이 이 프레임을 위조로 분류할 강한 신호를 감지함."] },
+        { sample_no: 12, frame_index: 115, fake_prob: 99.45, real_prob: 0.55, attention_weight_percent: 6.73, cam_intensity_percent: 13.29, image_url: "/static/ANL_EFF_1779280811_f115.jpg", detection_reasons: ["딥페이크 판별 확률 99.4%로 고위험 기준(85%)을 초과 — 모델이 이 프레임을 위조로 분류할 강한 신호를 감지함."] },
+        { sample_no: 13, frame_index: 125, fake_prob: 99.47, real_prob: 0.53, attention_weight_percent: 6.72, cam_intensity_percent: 13.4, image_url: "/static/ANL_EFF_1779280811_f125.jpg", detection_reasons: ["딥페이크 판별 확률 99.5%로 고위험 기준(85%)을 초과 — 모델이 이 프레임을 위조로 분류할 강한 신호를 감지함."] },
+        { sample_no: 14, frame_index: 136, fake_prob: 99.48, real_prob: 0.52, attention_weight_percent: 6.69, cam_intensity_percent: 10.28, image_url: "/static/ANL_EFF_1779280811_f136.jpg", detection_reasons: ["딥페이크 판별 확률 99.5%로 고위험 기준(85%)을 초과 — 모델이 이 프레임을 위조로 분류할 강한 신호를 감지함."] },
+        { sample_no: 15, frame_index: 146, fake_prob: 99.49, real_prob: 0.51, attention_weight_percent: 6.59, cam_intensity_percent: 8.83, image_url: "/static/ANL_EFF_1779280811_f146.jpg", detection_reasons: ["딥페이크 판별 확률 99.5%로 고위험 기준(85%)을 초과 — 모델이 이 프레임을 위조로 분류할 강한 신호를 감지함."] },
+        { sample_no: 16, frame_index: 157, fake_prob: 99.51, real_prob: 0.49, attention_weight_percent: 6.54, cam_intensity_percent: 10.67, image_url: "/static/ANL_EFF_1779280811_f157.jpg", detection_reasons: ["딥페이크 판별 확률 99.5%로 고위험 기준(85%)을 초과 — 모델이 이 프레임을 위조로 분류할 강한 신호를 감지함."] },
+    ],
+    verdict_basis: {
+        is_fake: true,
+        conditions_met_count: 2,
+        summary: "핵심 판정 지표인 영상 전체 FAKE 확률(99.2%)과 텍스처 왜곡 점수(97.1%)가 임계값을 초과하여 위조로 판정됩니다.",
+        conditions: {
+            영상_전체_FAKE_확률_초과: {
+                value: 99.2,
+                threshold: 85,
+                met: true,
+                description: "EfficientNet-B0 + GRU 모델의 영상 단위 FAKE 확률 99.2% (기준: 85%)",
+            },
+            텍스처_왜곡_임계값_초과: {
+                value: 97.1,
+                threshold: 40,
+                met: true,
+                description: "프레임 평균 왜곡 점수 97.1% (기준: 40%)",
+            },
+            시공간_비일관성_고위험: {
+                value: 10.7,
+                threshold: 50,
+                met: false,
+                description: "시공간 비일관성 점수 10.7% (기준: 50%)",
+            },
+        },
+        caution: "본 판정은 EfficientNet-B0 기반 AI 모델의 통계적 분석 결과이며, 법적 효력을 위해서는 전문가 검토와 병행되어야 합니다.",
+    },
     detailed_analysis: [
         {
-            title: "프레임 전환 일관성 위험도",
+            title: "시공간 비일관성 분석 (Temporal Consistency)",
             risk_level: "낮음",
-            score_percent: 40.7,
-            description:
-                "프레임 전환 시 얼굴이나 배경의 미세한 떨림 및 시공간적 비일관성이 40.7% 수준으로 감지되었습니다.",
+            score_percent: 10.7,
+            description: "프레임 전환 시 얼굴이나 배경의 미세한 떨림 및 시공간적 비일관성이 10.7% 수준으로 낮게 감지되었습니다.",
+            what_this_means: "딥페이크 영상은 프레임마다 생성 품질이 달라 시간 흐름상 확률값이 불규칙하게 요동치는 경향이 있습니다. 이 지표는 그 요동의 크기와 집중 시점을 수치화한 것입니다.",
         },
         {
-            title: "공간적 텍스처 및 화질 왜곡 위험도",
-            risk_level: "낮음",
-            score_percent: 28.7,
-            description:
-                "이미지 생성 과정에서 발생하는 인위적인 픽셀 뭉개짐이나 텍스처 이상 징후가 28.7% 확률로 감지되었습니다.",
-        },
-        {
-            title: "얼굴 경계 왜곡 위험도",
-            risk_level: "중간",
-            score_percent: 74.0,
-            description: "헤어라인/윤곽부 픽셀 불연속성 다수 발견되었습니다.",
-            proOnly: true,
-        },
-        {
-            title: "조명 일관성 위험도",
-            risk_level: "중간",
-            score_percent: 68.0,
-            description: "얼굴 좌우 조명 방향 불일치(3.2s ~ 4.1s) 구간이 감지되었습니다.",
-            proOnly: true,
-        },
-        {
-            title: "텍스처 분석 위험도",
-            risk_level: "낮음",
-            score_percent: 61.0,
-            description: "피부 질감 생성 패턴의 미세한 규칙성이 감지되었습니다.",
-            proOnly: true,
+            title: "공간적 텍스처·화질 왜곡 분석 (Spatial Texture Distortion)",
+            risk_level: "높음",
+            score_percent: 97.1,
+            description: "이미지 생성 과정에서 발생하는 인위적인 픽셀 뭉개짐이나 텍스처 이상 징후가 97.1% 확률로 높게 감지되었습니다.",
+            what_this_means: "딥페이크 합성 과정에서 피부 텍스처, 조명 반사, 얼굴 경계선 등 공간적 세부 요소에 왜곡이 발생합니다. 이 지표는 프레임별 공간 왜곡 확률의 평균값으로 영상의 전반적인 품질 이상도를 측정합니다.",
         },
     ],
+    ai_summary: "## 디지털 포렌식 전문가 소견\n\n제출된 'link_video.mp4' 영상은 딥페이크(Deepfake)로 판정되며, 분석 신뢰도는 99.15%로 매우 높습니다. EfficientNet-B0 + ScoreCAM 모델 기반의 정밀 분석 결과, 영상 전반에 걸쳐 인위적인 공간적 텍스처 및 화질 왜곡이 97.1% 수준으로 심각하게 감지되었습니다. 비록 시공간적 비일관성은 10.7%로 낮게 나타났으나, 이는 영상의 딥페이크 특성을 부인할 정도는 아닙니다.",
+};
+
+const MOCK_FORENSIC_OPINION = {
+    forensic_opinion: {
+        분석_개요_및_대상: "본 감정은 'ANL_EFF_1779270144' 식별자를 가진 'link_video.mp4' 파일의 진위 여부를 판별하기 위한 법영상 분석 및 디지털 포렌식 절차에 따라 수행되었습니다. 분석 결과, 해당 영상은 'FAKE'로 판정되었으며, 전체적인 신뢰도는 99.15%에 달합니다. 감정에는 AI 기반 딥페이크 탐지 모델과 조작 영역 시각화를 위한 Score-CAM 기법이 활용되었습니다.",
+        주요_조작_징후_프레임별_분석: [
+            { frame_rank: 1, sample_no: 7, frame_idx: 62, fake_prob: 98.75, 소견: "프레임 인덱스 62에서 분석된 첫 번째 핵심 프레임입니다. Score-CAM 히트맵은 강아지의 얼굴과 상체 부위에 걸쳐 가장 높은 활성화를 보입니다." },
+            { frame_rank: 2, sample_no: 8, frame_idx: 73, fake_prob: 99.02, 소견: "프레임 인덱스 73에서 분석된 두 번째 핵심 프레임입니다. 주요 피사체의 핵심 영역에 조작이 집중되었음을 보여줍니다." },
+            { frame_rank: 3, sample_no: 9, frame_idx: 83, fake_prob: 99.22, 소견: "프레임 인덱스 83에서 분석된 세 번째 핵심 프레임입니다. 얼굴과 목, 상체 전반에 걸쳐 조작 징후가 매우 강하게 나타납니다." },
+            { frame_rank: 4, sample_no: 10, frame_idx: 94, fake_prob: 99.34, 소견: "프레임 인덱스 94에서 분석된 네 번째 핵심 프레임입니다. 핵심 피사체의 외형이 비정상적으로 생성 또는 변경되었음을 강력히 시사합니다." },
+        ],
+        텍스처_일관성_수치_분석: "제공된 Score-CAM 히트맵은 영상 내 특정 영역에서 집중적인 활성화를 나타내어 시각적 텍스처 및 미세 패턴의 불일치를 시사합니다.",
+        시공간_일관성_수치_분석: "분석된 결정적 프레임 전반에 걸쳐 'FAKE' 판정 확률이 98.75%에서 99.34%로 일관되게 높게 유지되었습니다.",
+        기술적_위험도_평가: {
+            위험도: "높음",
+            근거: "해당 영상은 전체 신뢰도 99.15%로 'FAKE' 판정을 받았으며, 분석된 모든 결정적 프레임에서 98% 이상의 매우 높은 조작 확률을 보였습니다.",
+        },
+        최종_감정_의견: "위 분석 결과와 종합적인 디지털 포렌식 감정에 따르면, 제출된 영상 파일 'link_video.mp4'는 인공지능 기반의 딥페이크 기술을 이용하여 조작된 것으로 판단됩니다.",
+    },
 };
 
 // ─────────────────────────────────────────────────────────────
@@ -114,11 +143,21 @@ function pointColorFromProb(prob) {
 
 function normalizeHeatmapFrames(analysisData) {
     const timeline = analysisData.timeline_chart ?? [];
-    const rawHeatmaps = analysisData.heatmap_frames ?? [];
+    const rawHeatmaps =
+        analysisData.heatmap_frames ??
+        [
+            ...(analysisData.decisive_frames ?? []),
+            ...(analysisData.other_frames ?? []),
+        ];
 
     return timeline.map((frame, idx) => {
         const matched =
-            rawHeatmaps.find((h) => h.frame_idx === frame.frame_idx) ||
+            rawHeatmaps.find(
+                (h) =>
+                    h.frame_idx === frame.frame_idx ||
+                    h.frame_index === frame.frame_idx ||
+                    h.sample_no === frame.sample_no
+            ) ||
             rawHeatmaps[idx] ||
             null;
 
@@ -128,9 +167,13 @@ function normalizeHeatmapFrames(analysisData) {
         return {
             id: matched?.id ?? `Frame-${frame.frame_idx}`,
             frame_idx: frame.frame_idx,
+            sample_no: frame.sample_no ?? matched?.sample_no,
             fake_prob: fakeProb,
             real_prob: realProb,
-            image: matched?.image ?? null,
+            attention_weight_percent: matched?.attention_weight_percent,
+            cam_intensity_percent: matched?.cam_intensity_percent,
+            detection_reasons: matched?.detection_reasons ?? [],
+            image: matched?.image ?? matched?.image_url ?? null,
             risk:
                 frame.risk ??
                 (fakeProb >= 70 ? "높음" : fakeProb >= 50 ? "중간" : "낮음"),
@@ -143,23 +186,6 @@ function getHeatmapGalleryData(frames) {
     const featured = sorted.slice(0, 4);
     const remaining = sorted.slice(4);
     return { featured, remaining };
-}
-
-function renderSummaryMarkdown(summaryText) {
-    if (!summaryText) return null;
-
-    const formattedText = summaryText
-        .replace(/\\n/g, "\n")
-        .split(/\r?\n/)
-        .map((line) => line.replace(/^#{1,6}\s+/, "").replace(/\*\*(.+?)\*\*/g, "$1"))
-        .join("\n")
-        .trim();
-
-    return (
-        <div style={{ whiteSpace: "pre-wrap" }}>
-            {formattedText}
-        </div>
-    );
 }
 
 // ─── PDF 진행률 시뮬레이터 ────────────────────────────────────
@@ -210,6 +236,7 @@ function normalizeAnalysisData(rawAnalysis) {
         ...rawAnalysis,
         analysis_id: analysisId || MOCK_ANALYSIS.analysis_id,
         filename: rawAnalysis.filename || MOCK_ANALYSIS.filename,
+        model_used: rawAnalysis.model_used || rawAnalysis.modelUsed || "",
         ai_summary: rawAnalysis.ai_summary || rawAnalysis.aiSummary || "",
         final_prediction: rawAnalysis.final_prediction || rawAnalysis.finalPrediction || MOCK_ANALYSIS.final_prediction,
         overall_confidence_percent: confidence || MOCK_ANALYSIS.overall_confidence_percent,
@@ -228,11 +255,14 @@ function normalizeAnalysisData(rawAnalysis) {
             : (rawAnalysis.heatmap_frames || MOCK_ANALYSIS.heatmap_frames),
         model_names: Array.isArray(rawAnalysis.model_names) && rawAnalysis.model_names.length > 0
             ? rawAnalysis.model_names
+            : rawAnalysis.model_used
+                ? [rawAnalysis.model_used]
             : MOCK_ANALYSIS.model_names,
         video_duration: rawAnalysis.video_duration || rawAnalysis.duration || MOCK_ANALYSIS.video_duration,
         resolution: rawAnalysis.resolution || MOCK_ANALYSIS.resolution,
         frame_rate: rawAnalysis.frame_rate || MOCK_ANALYSIS.frame_rate,
         file_size: rawAnalysis.file_size || MOCK_ANALYSIS.file_size,
+        verdict_basis: rawAnalysis.verdict_basis || MOCK_ANALYSIS.verdict_basis,
     };
 
     normalizedAnalysis.analysis_time =
@@ -248,18 +278,22 @@ function buildReportPayload(analysisData) {
     return {
         analysis_id: analysisData.analysis_id,
         filename: analysisData.filename,
+        model_used: analysisData.model_used,
+        model_names: analysisData.model_names,
         final_prediction: analysisData.final_prediction,
         overall_confidence_percent: analysisData.overall_confidence_percent,
+        process_time_seconds: analysisData.process_time_seconds,
         analysis_time: analysisData.analysis_time,
         video_duration: analysisData.video_duration,
         resolution: analysisData.resolution,
         frame_rate: analysisData.frame_rate,
         file_size: analysisData.file_size,
-        model_names: analysisData.model_names,
         timeline_chart: analysisData.timeline_chart,
         detailed_analysis: analysisData.detailed_analysis,
         decisive_frames: analysisData.decisive_frames,
         other_frames: analysisData.other_frames,
+        verdict_basis: analysisData.verdict_basis,
+        ai_summary: analysisData.ai_summary,
     };
 }
 
@@ -1135,6 +1169,7 @@ function FrameGraphPage({ onBack, analysisData }) {
 export default function GalleryPage() {
     const navigate = useNavigate();
     const location = useLocation();
+    const hasInjectedAnalysis = Boolean(location.state?.analysis);
     const [analysisData, setAnalysisData] = useState(() => normalizeAnalysisData(location.state?.analysis));
     const previewSrc = location.state?.previewSrc || "";
     const sourceType = location.state?.sourceType || "";
@@ -1148,7 +1183,7 @@ export default function GalleryPage() {
 
     const [showFrameGraph, setShowFrameGraph] = useState(false);
     const [menuOpen, setMenuOpen] = useState(false);
-    const [forensicOpinion, setForensicOpinion] = useState("");
+    const [forensicOpinion, setForensicOpinion] = useState(() => (hasInjectedAnalysis ? "" : MOCK_FORENSIC_OPINION));
     const [pdfHeatmapFrames, setPdfHeatmapFrames] = useState([]);
     const [pdfComparisonNotes, setPdfComparisonNotes] = useState([]);
     const [hoveredInlineFrame, setHoveredInlineFrame] = useState(null);
@@ -1165,10 +1200,16 @@ export default function GalleryPage() {
     const reportCaptureRef = useRef(null);
 
     const inlineFrameStats = useMemo(() => {
-        const probs = analysisData.timeline_chart.map((f) => f.fake_prob);
+        const timeline = analysisData.timeline_chart ?? [];
+        if (timeline.length === 0) {
+            return { avg: 0, peak: 0, peakIdx: "-", dangerCount: 0 };
+        }
+
+        const probs = timeline.map((f) => Number(f.fake_prob ?? 0));
         const avg = Math.round((probs.reduce((a, b) => a + b, 0) / probs.length) * 10) / 10;
         const peak = Math.max(...probs);
-        const peakIdx = probs.findIndex((p) => p === peak) + 1;
+        const peakFrame = timeline.find((frame) => Number(frame.fake_prob ?? 0) === peak);
+        const peakIdx = peakFrame?.frame_idx ?? timeline[0]?.frame_idx ?? "-";
         const dangerCount = probs.filter((p) => p >= 70).length;
         return { avg, peak, peakIdx, dangerCount };
     }, [analysisData.timeline_chart]);
@@ -1222,8 +1263,8 @@ export default function GalleryPage() {
     }, [location.state, analysisData.analysis_id]);
 
     useEffect(() => {
-        setForensicOpinion("");
-    }, [analysisData.analysis_id]);
+        setForensicOpinion(location.state?.analysis ? "" : MOCK_FORENSIC_OPINION);
+    }, [analysisData.analysis_id, location.state]);
 
     useEffect(() => () => {
         pdfHeatmapFrames.forEach((frame) => {
@@ -1336,7 +1377,7 @@ export default function GalleryPage() {
             const reportPayload = buildReportPayload(analysisData);
             try {
                 const reportResponse = await fetchAnalyzeReport(reportPayload);
-                const nextForensicOpinion = reportResponse?.forensic_opinion || "";
+                const nextForensicOpinion = reportResponse?.forensic_opinion || reportResponse?.forensicOpinion || "";
                 const nextPdfHeatmaps = await Promise.all(
                     displayHeatmapFrames.map(async (frame) => {
                         if (!frame?.image) return frame;
@@ -1564,6 +1605,114 @@ export default function GalleryPage() {
                     border:none; cursor:pointer; margin-top:4px; transition:opacity .15s;
                 }
                 .pro-lock-btn:hover { opacity:.9; }
+
+                .analysis-summary-card {
+                    background:#ffffff;
+                    border:1px solid #e5e7eb;
+                    border-radius:18px;
+                    padding:22px 24px;
+                    box-shadow:0 1px 8px rgba(15,23,42,.03);
+                }
+                .analysis-summary-title {
+                    display:flex;
+                    align-items:center;
+                    gap:8px;
+                    margin:0 0 10px;
+                    font-size:17px;
+                    font-weight:800;
+                    color:#111827;
+                }
+                .analysis-summary-desc {
+                    margin:0 0 18px;
+                    font-size:13px;
+                    line-height:1.75;
+                    color:#4b5563;
+                }
+                .condition-grid {
+                    display:grid;
+                    grid-template-columns:repeat(3, minmax(0, 1fr));
+                    gap:14px;
+                    margin-top:16px;
+                }
+                .condition-card {
+                    background:#ffffff;
+                    border:1px solid #e5e7eb;
+                    border-radius:14px;
+                    padding:18px;
+                    min-height:136px;
+                    box-sizing:border-box;
+                }
+                .condition-card.met {
+                    background:#fff7f7;
+                    border-color:#fecaca;
+                }
+                .condition-card.safe {
+                    background:#eff6ff;
+                    border-color:#bfdbfe;
+                }
+                .condition-title {
+                    font-size:13px;
+                    font-weight:800;
+                    color:#111827;
+                    margin-bottom:12px;
+                    line-height:1.35;
+                }
+                .condition-value {
+                    font-size:25px;
+                    font-weight:900;
+                    margin-bottom:10px;
+                    letter-spacing:-0.4px;
+                }
+                .condition-card.met .condition-value {
+                    color:#dc2626;
+                }
+                .condition-card.safe .condition-value {
+                    color:#2563eb;
+                }
+                .condition-value span {
+                    font-size:13px !important;
+                    font-weight:700 !important;
+                    color:#6b7280 !important;
+                    letter-spacing:0;
+                }
+                .condition-desc {
+                    font-size:12px;
+                    line-height:1.55;
+                    color:#6b7280;
+                }
+                .analysis-caution {
+                    margin-top:16px;
+                    padding:14px 16px;
+                    border-radius:12px;
+                    background:#fffbeb;
+                    border:1px solid #fde68a;
+                    color:#92400e;
+                    font-size:13px;
+                    line-height:1.6;
+                    font-weight:600;
+                }
+                .what-means {
+                    margin-top:10px;
+                    padding:12px 14px;
+                    border-radius:12px;
+                    background:#f8fafc;
+                    border:1px solid #e2e8f0;
+                    color:#475569;
+                    font-size:12px;
+                    line-height:1.7;
+                    white-space:pre-wrap;
+                }
+                .what-means b {
+                    display:block;
+                    margin-bottom:4px;
+                    color:#0f172a;
+                    font-size:12px;
+                }
+                @media (max-width: 900px) {
+                    .condition-grid {
+                        grid-template-columns:1fr;
+                    }
+                }
             `}</style>
 
             <div className="wrap">
@@ -1806,6 +1955,50 @@ export default function GalleryPage() {
                         </div>
                     </div>
 
+                    {analysisData.verdict_basis && (
+                        <div className="card section-card analysis-summary-wrap">
+                            <h3 className="section-title">종합 분석</h3>
+
+                            <div className="analysis-summary-card">
+                                <h4 className="analysis-summary-title">
+                                    <span>📄</span> 판정 근거 요약
+                                </h4>
+
+                                <p className="analysis-summary-desc">
+                                    {analysisData.verdict_basis.summary}
+                                </p>
+
+                                <div className="condition-grid">
+                                    {Object.entries(analysisData.verdict_basis.conditions ?? {}).map(([key, condition]) => (
+                                        <div
+                                            key={key}
+                                            className={`condition-card ${condition.met ? "met" : "safe"}`}
+                                        >
+                                            <div className="condition-title">
+                                                {key.replaceAll("_", " ")}
+                                            </div>
+
+                                            <div className="condition-value">
+                                                {condition.value}%
+                                                <span> / 기준 {condition.threshold}%</span>
+                                            </div>
+
+                                            <div className="condition-desc">
+                                                {condition.description}
+                                            </div>
+                                        </div>
+                                    ))}
+                                </div>
+
+                                {analysisData.verdict_basis.caution && (
+                                    <div className="analysis-caution">
+                                        ※ {analysisData.verdict_basis.caution}
+                                    </div>
+                                )}
+                            </div>
+                        </div>
+                    )}
+
                     <div className="card section-card">
                         <h3 className="section-title">상세 분석 결과</h3>
 
@@ -1817,6 +2010,12 @@ export default function GalleryPage() {
                                         <span className={`tag ${riskTag(item.risk_level)}`}>위험도: {item.risk_level}</span>
                                     </div>
                                     <div className="d-desc">{item.description}</div>
+                                    {item.what_this_means && (
+                                        <div className="what-means">
+                                            <b>판별 근거</b>
+                                            {item.what_this_means}
+                                        </div>
+                                    )}
                                 </div>
                                 <div className="d-right">
                                     <div className="d-percent">{item.score_percent}%</div>
@@ -1873,25 +2072,6 @@ export default function GalleryPage() {
                                 title="AI 생성 영상 탐지 히트맵"
                                 description="위조 확률이 가장 높은 상위 4개 프레임입니다. 나머지 프레임은 탭을 눌러 갤러리처럼 확인할 수 있습니다."
                             />
-                        </div>
-                    )}
-
-                    {analysisData.ai_summary && (
-                        <div className="card section-card">
-                            <h3 className="section-title">종합 분석 요약</h3>
-                            <div
-                                style={{
-                                    background: "#f9fafb",
-                                    border: "1px solid #e5e7eb",
-                                    borderRadius: 14,
-                                    padding: "20px 22px",
-                                    color: "#374151",
-                                    fontSize: 15,
-                                    lineHeight: 1.8,
-                                }}
-                            >
-                                {renderSummaryMarkdown(analysisData.ai_summary)}
-                            </div>
                         </div>
                     )}
 

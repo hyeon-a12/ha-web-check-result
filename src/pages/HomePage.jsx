@@ -11,6 +11,180 @@ const ANALYSIS_STAGES = [
     { threshold: 70, text: "최종 결과를 정리하고 있습니다" },
 ];
 
+const MODELS = [
+    {
+        id: "EfficientNet",
+        label: "EfficientNet",
+        desc: "균형 잡힌 종합 분석 모델",
+    },
+    {
+        id: "Diffusion",
+        label: "Diffusion",
+        desc: "고정밀 딥페이크 특화 모델",
+    },
+];
+
+function ModelDropdown({ value, onChange }) {
+    const [open, setOpen] = useState(false);
+    const wrapRef = useRef(null);
+    const current = MODELS.find((item) => item.id === value) ?? MODELS[0];
+
+    useEffect(() => {
+        const handleOutsideClick = (event) => {
+            if (wrapRef.current && !wrapRef.current.contains(event.target)) {
+                setOpen(false);
+            }
+        };
+
+        document.addEventListener("mousedown", handleOutsideClick);
+        return () => document.removeEventListener("mousedown", handleOutsideClick);
+    }, []);
+
+    return (
+        <>
+            <style>{`
+                .mdl-wrap {
+                    position: relative;
+                    display: inline-block;
+                }
+                .mdl-trigger {
+                    display: inline-flex;
+                    align-items: center;
+                    gap: 6px;
+                    padding: 7px 12px 7px 10px;
+                    border-radius: 8px;
+                    border: none;
+                    background: #2a2a2a;
+                    color: #fff;
+                    font-size: 14px;
+                    font-weight: 600;
+                    cursor: pointer;
+                    transition: background 0.15s;
+                    white-space: nowrap;
+                    font-family: inherit;
+                    line-height: 1;
+                    transform: translateY(-40px);
+                }
+                .mdl-trigger:hover { background: #333; }
+                .mdl-trigger-icon { font-size: 15px; line-height: 1; }
+                .mdl-trigger-chevron {
+                    font-size: 10px;
+                    opacity: 0.7;
+                    transition: transform 0.2s;
+                    display: inline-block;
+                }
+                .mdl-trigger-chevron.up { transform: rotate(180deg); }
+                .mdl-panel {
+                    position: absolute;
+                    bottom: calc(100% + 8px);
+                    right: 0;
+                    min-width: 240px;
+                    background: #1e1e1e;
+                    border: 1px solid rgba(255,255,255,0.1);
+                    border-radius: 14px;
+                    box-shadow: 0 8px 32px rgba(0,0,0,0.45);
+                    overflow: hidden;
+                    z-index: 200;
+                    animation: mdlIn 0.18s cubic-bezier(.22,1,.36,1) both;
+                }
+                @keyframes mdlIn {
+                    from { opacity: 0; transform: translateY(6px) scale(0.97); }
+                    to { opacity: 1; transform: none; }
+                }
+
+                .mdl-item {
+                    display: flex;
+                    align-items: center;
+                    justify-content: space-between;
+                    padding: 14px 16px;
+                    cursor: pointer;
+                    transition: background 0.12s;
+                    gap: 10px;
+                }
+                .mdl-item:hover { background: rgba(255,255,255,0.06); }
+                .mdl-item-left {
+                    display: flex;
+                    align-items: center;
+                    gap: 10px;
+                    flex: 1;
+                    min-width: 0;
+                }
+                .mdl-item-icon { font-size: 20px; line-height: 1; flex-shrink: 0; }
+                .mdl-item-text { flex: 1; min-width: 0; }
+                .mdl-item-name { font-size: 15px; font-weight: 600; color: #fff; line-height: 1.3; }
+                .mdl-item-desc { font-size: 12px; color: rgba(255,255,255,0.45); margin-top: 2px; }
+                .mdl-check {
+                    color: #4f8ef7;
+                    font-size: 16px;
+                    flex-shrink: 0;
+                    opacity: 0;
+                    transition: opacity 0.15s;
+                }
+                .mdl-check.visible { opacity: 1; }
+                .mdl-divider {
+                    height: 1px;
+                    background: rgba(255,255,255,0.08);
+                    margin: 0 16px;
+                }
+                .mdl-more {
+                    display: flex;
+                    align-items: center;
+                    justify-content: space-between;
+                    padding: 13px 16px;
+                    cursor: pointer;
+                    transition: background 0.12s;
+                }
+                .mdl-more:hover { background: rgba(255,255,255,0.06); }
+                .mdl-more-label { font-size: 14px; color: rgba(255,255,255,0.65); font-weight: 500; }
+                .mdl-more-arrow { font-size: 14px; color: rgba(255,255,255,0.4); }
+            `}</style>
+
+            <div className="mdl-wrap" ref={wrapRef}>
+                {open && (
+                    <div className="mdl-panel">
+                        {MODELS.map((model, index) => (
+                            <React.Fragment key={model.id}>
+                                {index > 0 && <div className="mdl-divider" />}
+                                <div
+                                    className="mdl-item"
+                                    onClick={() => {
+                                        onChange(model.id);
+                                        setOpen(false);
+                                    }}
+                                >
+                                    <div className="mdl-item-left">
+                                        <span className="mdl-item-icon">{model.icon}</span>
+                                        <div className="mdl-item-text">
+                                            <div className="mdl-item-name">{model.label}</div>
+                                            <div className="mdl-item-desc">{model.desc}</div>
+                                        </div>
+                                    </div>
+                                    <span className={`mdl-check${value === model.id ? " visible" : ""}`}>✓</span>
+                                </div>
+                            </React.Fragment>
+                        ))}
+                        <div className="mdl-divider" />
+                        {/* <div className="mdl-more" onClick={() => setOpen(false)}>
+                            <span className="mdl-more-label">더 많은 모델</span>
+                            <span className="mdl-more-arrow">›</span>
+                        </div> */}
+                    </div>
+                )}
+
+                <button
+                    type="button"
+                    className="mdl-trigger"
+                    onClick={() => setOpen((prev) => !prev)}
+                >
+                    <span className="mdl-trigger-icon">{current.icon}</span>
+                    {current.label}
+                    <span className={`mdl-trigger-chevron${open ? " up" : ""}`}>▼</span>
+                </button>
+            </div>
+        </>
+    );
+}
+
 function getStageText(progress) {
     let current = ANALYSIS_STAGES[0].text;
     for (const stage of ANALYSIS_STAGES) {
@@ -23,6 +197,7 @@ export default function HomePage() {
     const navigate = useNavigate();
 
     const [tab, setTab] = useState("file");
+    const [selectedModel, setSelectedModel] = useState(MODELS[0].id);
     const dropzoneRef = useRef(null);
     const analysisStartedAtRef = useRef(null);
     const progressTimerRef = useRef(null);
@@ -83,6 +258,7 @@ export default function HomePage() {
                 sourceType: tab,
                 sourceUrl: tab === "url" ? urlValue.trim() : "",
                 videoId: tab === "url" ? urlMeta?.videoId || "" : "",
+                selectedModel,
                 displayTitle:
                     tab === "file"
                         ? selectedFile?.name || "업로드한 영상"
@@ -91,7 +267,7 @@ export default function HomePage() {
         });
 
         analysisStartedAtRef.current = null;
-    }, [analysisResult, navigate, previewKind, previewSrc, selectedFile?.name, tab, urlMeta?.title, urlMeta?.videoId, urlValue]);
+    }, [analysisResult, navigate, previewKind, previewSrc, selectedFile?.name, selectedModel, tab, urlMeta?.title, urlMeta?.videoId, urlValue]);
 
     const startProgressSimulation = () => {
         if (progressTimerRef.current) return;
@@ -344,6 +520,10 @@ export default function HomePage() {
                                     </div>
                                 </div>
                             )}
+                        </div>
+
+                        <div style={{ display: "flex", justifyContent: "flex-end", marginTop: 12 }}>
+                            <ModelDropdown value={selectedModel} onChange={setSelectedModel} />
                         </div>
                     </div>
                 </div>
