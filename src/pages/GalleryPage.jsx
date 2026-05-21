@@ -1942,7 +1942,7 @@ export default function GalleryPage() {
                                 </p>
 
                                 <div className="condition-grid">
-                                    {Object.entries(analysisData.verdict_basis.conditions ?? {}).map(([key, condition]) => (
+                                    {Object.entries(analysisData.verdict_basis.conditions ?? {}).filter(([key]) => !key.includes("부분_조작")).map(([key, condition]) => (
                                         <div
                                             key={key}
                                             className={`condition-card ${condition.met ? "met" : "safe"}`}
