@@ -266,9 +266,11 @@ export const analyzeVideoLink = async (videoUrl) => {
         finalPrediction: payload?.final_prediction || "",
         confidenceScore: Number(payload?.overall_confidence_percent ?? 0),
         processTimeSeconds: Number(payload?.process_time_seconds ?? 0),
+        model_used: payload?.model_used || "",
         ai_summary: payload?.ai_summary || "",
         timeline_chart: Array.isArray(payload?.timeline_chart) ? payload.timeline_chart : [],
         detailed_analysis: Array.isArray(payload?.detailed_analysis) ? payload.detailed_analysis : [],
+        verdict_basis: payload?.verdict_basis || null,
         decisive_frames: normalizeFrameImages(payload?.decisive_frames),
         other_frames: normalizeFrameImages(payload?.other_frames),
     };
@@ -307,9 +309,11 @@ export const analyzeVideoFile = async (fileObject) => {
         finalPrediction: payload?.final_prediction || "",
         confidenceScore: Number(payload?.overall_confidence_percent ?? 0),
         processTimeSeconds: Number(payload?.process_time_seconds ?? 0),
+        model_used: payload?.model_used || "",
         ai_summary: payload?.ai_summary || "",
         timeline_chart: Array.isArray(payload?.timeline_chart) ? payload.timeline_chart : [],
         detailed_analysis: Array.isArray(payload?.detailed_analysis) ? payload.detailed_analysis : [],
+        verdict_basis: payload?.verdict_basis || null,
         decisive_frames: normalizeFrameImages(payload?.decisive_frames),
         other_frames: normalizeFrameImages(payload?.other_frames),
     };
