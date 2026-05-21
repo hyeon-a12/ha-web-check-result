@@ -285,6 +285,12 @@ export default function PrintableReport({
         ...(analysisData.other_frames ?? []),
     ];
 
+    const topFrameRows = (analysisData.decisive_frames ?? [])
+        .slice()
+        .sort((a, b) => (a.rank ?? 99) - (b.rank ?? 99))
+        .slice(0, 4)
+        .filter((f) => Array.isArray(f.detection_reasons) && f.detection_reasons.length > 0);
+
     const totalPdfPages = 2 + heatmapChunks.length;
 
     const S = {
@@ -1268,6 +1274,42 @@ export default function PrintableReport({
                                         </tr>
                                     );
                                 })}
+                            </tbody>
+                        </table>
+                    </div>
+                )}
+
+                {topFrameRows.length > 0 && (
+                    <div style={{ marginBottom: 14 }}>
+                        <div style={S.sectionTitle}>
+                            상위 4개 프레임별 설명 <span style={S.sectionEn}>Top Frame Detection Details</span>
+                        </div>
+                        <table style={S.table}>
+                            <thead>
+                                <tr>
+                                    <th style={{ ...S.th, width: "8%", textAlign: "center" }}>순위</th>
+                                    <th style={{ ...S.th, width: "12%", textAlign: "center" }}>프레임</th>
+                                    <th style={{ ...S.th, width: "14%", textAlign: "center" }}>위조 확률</th>
+                                    <th style={S.th}>탐지 근거</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {topFrameRows.map((frame, index) => (
+                                    <tr key={`top-frame-${frame.rank ?? index}`} style={{ background: index % 2 === 0 ? "#fff" : "#f8fafc" }}>
+                                        <td style={{ ...S.td, textAlign: "center", fontWeight: 800, color: "#1e3a8a" }}>
+                                            {frame.rank ?? index + 1}
+                                        </td>
+                                        <td style={{ ...S.td, textAlign: "center", fontWeight: 700 }}>
+                                            Frame {frame.frame_index ?? frame.frame_idx}
+                                        </td>
+                                        <td style={{ ...S.td, textAlign: "center", fontWeight: 800, color: "#dc2626" }}>
+                                            {Number(frame.fake_prob ?? 0).toFixed(2)}%
+                                        </td>
+                                        <td style={{ ...S.td, fontSize: 10, lineHeight: 1.7 }}>
+                                            {frame.detection_reasons.join(" ")}
+                                        </td>
+                                    </tr>
+                                ))}
                             </tbody>
                         </table>
                     </div>
