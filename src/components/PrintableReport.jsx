@@ -278,18 +278,11 @@ export default function PrintableReport({
     const frameFindings = forensicData?.주요_조작_징후_프레임별_분석 ?? [];
     const textureAnalysis = forensicData?.텍스처_일관성_수치_분석 ?? "";
     const spatiotemporalAnalysis = forensicData?.시공간_일관성_수치_분석 ?? "";
-    const technicalRisk = forensicData?.기술적_위험도_평가 ?? null;
     const finalOpinion = forensicData?.최종_감정_의견 ?? "";
     const allDecisiveFrames = [
         ...(analysisData.decisive_frames ?? []),
         ...(analysisData.other_frames ?? []),
     ];
-
-    const topFrameRows = (analysisData.decisive_frames ?? [])
-        .slice()
-        .sort((a, b) => (a.rank ?? 99) - (b.rank ?? 99))
-        .slice(0, 4)
-        .filter((f) => Array.isArray(f.detection_reasons) && f.detection_reasons.length > 0);
 
     const totalPdfPages = 2 + heatmapChunks.length;
 
